@@ -1,0 +1,2 @@
+kind: Fixed
+body: Retry SSH channels rejected before command execution during sustained parallel refreshes.

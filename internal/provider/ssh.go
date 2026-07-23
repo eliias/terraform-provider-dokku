@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/melbahja/goph"
 )
@@ -22,7 +23,8 @@ type SshOutput struct {
 // to 10 concurrent resource operations, and individual resource reads often
 // open follow-up sessions before other reads finish. Keep a small margin so
 // the shared provider connection never exhausts the server's channel limit.
-const maxConcurrentSSHSessions = 8
+const maxConcurrentSSHSessions = 4
+const maxSSHSessionOpenAttempts = 3
 
 var sshSessionSlots = make(chan struct{}, maxConcurrentSSHSessions)
 
@@ -44,7 +46,15 @@ func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput 
 		<-sshSessionSlots
 	}()
 
-	stdoutRaw, err := client.Run(cmd)
+	var stdoutRaw []byte
+	var err error
+	for attempt := 1; attempt <= maxSSHSessionOpenAttempts; attempt++ {
+		stdoutRaw, err = client.Run(cmd)
+		if !isRetryableSSHSessionOpenError(err) || attempt == maxSSHSessionOpenAttempts {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+	}
 
 	stdout := string(stdoutRaw)
 	for _, toReplace := range sensitiveStrings {
@@ -66,6 +76,10 @@ func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput 
 			err:    nil,
 		}
 	}
+}
+
+func isRetryableSSHSessionOpenError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "ssh: rejected: connect failed (open failed)")
 }
 
 func prefixedCommand(cmd string) string {
