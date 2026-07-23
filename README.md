@@ -29,6 +29,7 @@ This provider supports Dokku >= v0.30 and < v0.39, although it can be forced to 
 - 🔗 **Service Links**: Connect your apps to databases
 - 🌐 **Domains**: Configure custom domains for your apps
 - 🔧 **Config**: Manage environment variables and app settings
+- 📊 **Resource Limits**: Set app-wide or per-process CPU, memory, network, and GPU limits
 
 ## How To Use
 
@@ -92,8 +93,21 @@ resource "dokku_app" "rails-app" {
     "https://github.com/heroku/heroku-buildpack-nodejs.git",
     "https://github.com/heroku/heroku-buildpack-ruby.git"
   ]
+
+  resource_limits {
+    cpu    = "1"
+    memory = "512m"
+  }
+
+  resource_limits {
+    process_type = "worker"
+    memory       = "1g"
+  }
 }
 ```
+
+Resource limit values and units are interpreted by the app's Dokku scheduler.
+Dokku applies changed limits on the app's next rebuild or deploy.
 
 ### Tested dokku versions
 

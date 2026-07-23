@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -12,22 +13,22 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
+		Description:   "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
 		DeleteContext: appDelete,
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the Dokku application.",
 			},
 			// TODO: locked support
 			"locked": &schema.Schema{
-				Type:     schema.TypeBool,
-				Default:  false,
-				Optional: true,
+				Type:        schema.TypeBool,
+				Default:     false,
+				Optional:    true,
 				Description: "(Not yet implemented) Whether the application is locked for deployment. When true, deploys to this application will be blocked.",
 			},
 			"config_vars": &schema.Schema{
@@ -35,8 +36,8 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional:  true,
-				Sensitive: true,
+				Optional:    true,
+				Sensitive:   true,
 				Description: "Environment variables to set for the application. These are exposed to the application at runtime.",
 			},
 			"domains": &schema.Schema{
@@ -44,8 +45,8 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
-				Computed: true,
+				Optional:    true,
+				Computed:    true,
 				Description: "List of domains to be associated with the application.",
 			},
 			"buildpacks": &schema.Schema{
@@ -53,7 +54,7 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
+				Optional:    true,
 				Description: "List of buildpacks to be used when deploying the application. These can be URLs to custom buildpacks or shorthand names for official Heroku buildpacks.",
 			},
 			"ports": &schema.Schema{
@@ -61,7 +62,7 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
+				Optional:    true,
 				Description: "Set of port mappings for the application. Each mapping should be in the format 'scheme:hostPort:containerPort' (e.g., 'https:443:8080').",
 				// ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 				// 	v := val.([]string)
@@ -75,25 +76,68 @@ func resourceApp() *schema.Resource {
 				// 	return []string{}, errs
 				// },
 			},
+			"resource_limits": {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Computed:    true,
+				Set:         resourceLimitHash,
+				Description: "Resource limits for the application. Limits may apply to all runtime processes or to a specific process type.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"process_type": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							Default:      "_default_",
+							ValidateFunc: validation.StringMatch(regexp.MustCompile(`^(_default_|[A-Za-z0-9][A-Za-z0-9_-]*)$`), "must be _default_ or a valid Dokku process type"),
+							Description:  "Process type for these limits. Use `_default_` to apply limits to all runtime processes.",
+						},
+						"cpu":             resourceLimitValueSchema("Maximum CPU allocation. The value is scheduler-specific."),
+						"memory":          resourceLimitValueSchema("Maximum memory allocation. The value is scheduler-specific, for example `512m`."),
+						"memory_swap":     resourceLimitValueSchema("Maximum combined memory and swap allocation. The value is scheduler-specific."),
+						"network":         resourceLimitValueSchema("Maximum network bandwidth. The value is scheduler-specific."),
+						"network_ingress": resourceLimitValueSchema("Maximum ingress network bandwidth. The value is scheduler-specific."),
+						"network_egress":  resourceLimitValueSchema("Maximum egress network bandwidth. The value is scheduler-specific."),
+						"nvidia_gpu":      resourceLimitValueSchema("Maximum number of Nvidia GPUs. The value is scheduler-specific."),
+					},
+				},
+			},
 			"nginx_bind_address_ipv4": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "0.0.0.0",
 				ValidateFunc: validation.IsIPv4Address,
-				Description: "The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.",
+				Description:  "The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.",
 			},
 			"nginx_bind_address_ipv6": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "::",
 				ValidateFunc: validation.IsIPv6Address,
-				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
+				Description:  "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
 			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
+}
+
+func resourceLimitValueSchema(description string) *schema.Schema {
+	return &schema.Schema{
+		Type:         schema.TypeString,
+		Optional:     true,
+		ValidateFunc: validation.StringNotInSlice([]string{"", "clear"}, false),
+		Description:  description,
+	}
+}
+
+func resourceLimitHash(value interface{}) int {
+	item := value.(map[string]interface{})
+	processType, ok := item["process_type"].(string)
+	if !ok || processType == "" {
+		processType = "_default_"
+	}
+	return schema.HashString(processType)
 }
 
 func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -115,7 +159,6 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	return diags
 }
 
-//
 func appRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -137,7 +180,6 @@ func appRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Di
 	return diags
 }
 
-//
 func appUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -153,7 +195,6 @@ func appUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	return diags
 }
 
-//
 func appDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 

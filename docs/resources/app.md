@@ -28,6 +28,20 @@ Manages a Dokku application. This resource enables the configuration and deploym
 - `nginx_bind_address_ipv4` (String) The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.
 - `nginx_bind_address_ipv6` (String) The IPv6 address that nginx will bind to for this application. Defaults to '::'.
 - `ports` (Set of String) Set of port mappings for the application. Each mapping should be in the format 'scheme:hostPort:containerPort' (e.g., 'https:443:8080').
+- `resource_limits` (Set of Object) Resource limits for the application. Limits may apply to all runtime processes or to a specific process type. Dokku applies changed limits on the next rebuild or deploy.
+
+Each `resource_limits` block supports:
+
+- `process_type` (String, optional) Process type for these limits. Defaults to `_default_`, which applies limits to all runtime processes.
+- `cpu` (String, optional) Maximum CPU allocation.
+- `memory` (String, optional) Maximum memory allocation, for example `512m`.
+- `memory_swap` (String, optional) Maximum combined memory and swap allocation.
+- `network` (String, optional) Maximum network bandwidth.
+- `network_ingress` (String, optional) Maximum ingress network bandwidth.
+- `network_egress` (String, optional) Maximum egress network bandwidth.
+- `nvidia_gpu` (String, optional) Maximum number of Nvidia GPUs.
+
+Resource values and units are interpreted by the app's Dokku scheduler.
 
 ### Read-Only
 

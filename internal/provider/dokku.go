@@ -11,21 +11,31 @@ import (
 	"al.essio.dev/pkg/shellescape"
 )
 
-//
 type DokkuApp struct {
-	Id         string
-	Name       string
-	Locked     bool
-	ConfigVars map[string]string
-	Domains    []string
-	Buildpacks []string
+	Id             string
+	Name           string
+	Locked         bool
+	ConfigVars     map[string]string
+	Domains        []string
+	Buildpacks     []string
+	ResourceLimits []DokkuAppResourceLimit
 	// slice of strings denoting schema:hostPort:containerPort
 	Ports                []string
 	NginxBindAddressIpv4 string
 	NginxBindAddressIpv6 string
 }
 
-//
+type DokkuAppResourceLimit struct {
+	ProcessType    string
+	CPU            string
+	Memory         string
+	MemorySwap     string
+	Network        string
+	NetworkIngress string
+	NetworkEgress  string
+	NvidiaGPU      string
+}
+
 func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.SetId(app.Id)
 	d.Set("name", app.Name)
@@ -46,6 +56,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 		d.Set("ports", nil)
 	}
 
+	d.Set("resource_limits", resourceLimitsToInterfaces(app.ResourceLimits))
 	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
 	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
 }
@@ -111,6 +122,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 	domains := interfaceSliceToStrSlice(d.Get("domains").(*schema.Set).List())
 	buildpacks := interfaceSliceToStrSlice(d.Get("buildpacks").([]interface{}))
 	ports := interfaceSliceToStrSlice(d.Get("ports").(*schema.Set).List())
+	resourceLimits := resourceLimitsFromInterfaces(d.Get("resource_limits").(*schema.Set).List())
 
 	configVars := make(map[string]string)
 	for ck, cv := range d.Get("config_vars").(map[string]interface{}) {
@@ -124,12 +136,78 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Domains:              domains,
 		Buildpacks:           buildpacks,
 		Ports:                ports,
+		ResourceLimits:       resourceLimits,
 		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
 		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
 	}
 }
 
-//
+func resourceLimitsFromInterfaces(values []interface{}) []DokkuAppResourceLimit {
+	limits := make([]DokkuAppResourceLimit, 0, len(values))
+
+	for _, value := range values {
+		item := value.(map[string]interface{})
+		processType := resourceLimitString(item, "process_type")
+		if processType == "" {
+			processType = "_default_"
+		}
+		limits = append(limits, DokkuAppResourceLimit{
+			ProcessType:    processType,
+			CPU:            resourceLimitString(item, "cpu"),
+			Memory:         resourceLimitString(item, "memory"),
+			MemorySwap:     resourceLimitString(item, "memory_swap"),
+			Network:        resourceLimitString(item, "network"),
+			NetworkIngress: resourceLimitString(item, "network_ingress"),
+			NetworkEgress:  resourceLimitString(item, "network_egress"),
+			NvidiaGPU:      resourceLimitString(item, "nvidia_gpu"),
+		})
+	}
+
+	return limits
+}
+
+func resourceLimitString(item map[string]interface{}, key string) string {
+	value, ok := item[key]
+	if !ok || value == nil {
+		return ""
+	}
+	return value.(string)
+}
+
+func resourceLimitsToInterfaces(limits []DokkuAppResourceLimit) []interface{} {
+	values := make([]interface{}, 0, len(limits))
+
+	for _, limit := range limits {
+		item := map[string]interface{}{
+			"process_type": limit.ProcessType,
+		}
+		if limit.CPU != "" {
+			item["cpu"] = limit.CPU
+		}
+		if limit.Memory != "" {
+			item["memory"] = limit.Memory
+		}
+		if limit.MemorySwap != "" {
+			item["memory_swap"] = limit.MemorySwap
+		}
+		if limit.Network != "" {
+			item["network"] = limit.Network
+		}
+		if limit.NetworkIngress != "" {
+			item["network_ingress"] = limit.NetworkIngress
+		}
+		if limit.NetworkEgress != "" {
+			item["network_egress"] = limit.NetworkEgress
+		}
+		if limit.NvidiaGPU != "" {
+			item["nvidia_gpu"] = limit.NvidiaGPU
+		}
+		values = append(values, item)
+	}
+
+	return values
+}
+
 func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	res := run(client, fmt.Sprintf("apps:exists %s", appName))
 
@@ -172,6 +250,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	}
 	app.Ports = ports
 
+	resourceLimits, err := readAppResourceLimits(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.ResourceLimits = resourceLimits
+
 	nginxReport, err := readAppNginxReport(appName, client)
 	if err != nil {
 		return nil, err
@@ -180,6 +264,62 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	app.NginxBindAddressIpv6 = nginxReport.BindAddressIpv6
 
 	return app, nil
+}
+
+func readAppResourceLimits(appName string, client *goph.Client) ([]DokkuAppResourceLimit, error) {
+	res := run(client, fmt.Sprintf("resource:report %s", appName))
+	if res.err != nil {
+		return nil, res.err
+	}
+
+	return parseAppResourceLimits(res.stdout), nil
+}
+
+func parseAppResourceLimits(stdout string) []DokkuAppResourceLimit {
+	limitsByProcess := make(map[string]*DokkuAppResourceLimit)
+	keyValues := parseKeyValues(strings.Split(stdout, "\n")[1:])
+
+	for key, value := range keyValues {
+		if value == "" {
+			continue
+		}
+
+		parts := strings.Fields(key)
+		if len(parts) < 4 || parts[0] != "resource" || parts[2] != "limit" {
+			continue
+		}
+
+		processType := parts[1]
+		limit, ok := limitsByProcess[processType]
+		if !ok {
+			limit = &DokkuAppResourceLimit{ProcessType: processType}
+			limitsByProcess[processType] = limit
+		}
+
+		switch strings.Join(parts[3:], " ") {
+		case "cpu":
+			limit.CPU = value
+		case "memory":
+			limit.Memory = value
+		case "memory swap":
+			limit.MemorySwap = value
+		case "network":
+			limit.Network = value
+		case "network ingress":
+			limit.NetworkIngress = value
+		case "network egress":
+			limit.NetworkEgress = value
+		case "nvidia gpu":
+			limit.NvidiaGPU = value
+		}
+	}
+
+	limits := make([]DokkuAppResourceLimit, 0, len(limitsByProcess))
+	for _, limit := range limitsByProcess {
+		limits = append(limits, *limit)
+	}
+
+	return limits
 }
 
 // TODO error handling
@@ -217,7 +357,6 @@ func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
 	return config
 }
 
-//
 func readAppDomains(appName string, client *goph.Client) ([]string, error) {
 	res := run(client, fmt.Sprintf("domains:report %s", appName))
 
@@ -308,7 +447,6 @@ type DokkuAppNginxReport struct {
 	BindAddressIpv6 string
 }
 
-//
 func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxReport, error) {
 	res := run(client, fmt.Sprintf("nginx:report %s", appName))
 
@@ -342,7 +480,6 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 	return report, nil
 }
 
-//
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
 
@@ -376,6 +513,12 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 		return err
 	}
 
+	err = dokkuAppResourceLimitsSet(app.Name, app.ResourceLimits, client)
+
+	if err != nil {
+		return err
+	}
+
 	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv4", app.NginxBindAddressIpv4, client)
 
 	if err != nil {
@@ -387,7 +530,6 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	return err
 }
 
-//
 func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 	configVarStr := app.configVarsStr()
 	if len(configVarStr) == 0 {
@@ -403,7 +545,6 @@ func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 	return res.err
 }
 
-//
 func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.Client) error {
 	if len(varsToUnset) == 0 {
 		return nil
@@ -416,7 +557,6 @@ func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.C
 	return res.err
 }
 
-//
 func dokkuAppDomainsAdd(app *DokkuApp, client *goph.Client) error {
 	domainStr := strings.Join(app.Domains, " ")
 
@@ -442,7 +582,6 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 	return nil
 }
 
-//
 func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
 	for _, portRange := range ports {
 		portRange = strings.TrimSpace(portRange)
@@ -458,12 +597,65 @@ func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error
 	return nil
 }
 
+func dokkuAppResourceLimitsSet(appName string, limits []DokkuAppResourceLimit, client *goph.Client) error {
+	for _, limit := range limits {
+		args := make([]string, 0, 16)
+		if limit.ProcessType != "_default_" {
+			args = append(args, "--process-type", shellescape.Quote(limit.ProcessType))
+		}
+
+		resourceValues := []struct {
+			flag  string
+			value string
+		}{
+			{"--cpu", limit.CPU},
+			{"--memory", limit.Memory},
+			{"--memory-swap", limit.MemorySwap},
+			{"--network", limit.Network},
+			{"--network-ingress", limit.NetworkIngress},
+			{"--network-egress", limit.NetworkEgress},
+			{"--nvidia-gpu", limit.NvidiaGPU},
+		}
+		for _, resourceValue := range resourceValues {
+			if resourceValue.value != "" {
+				args = append(args, resourceValue.flag, shellescape.Quote(resourceValue.value))
+			}
+		}
+
+		if len(args) == 0 {
+			continue
+		}
+
+		res := run(client, fmt.Sprintf("resource:limit %s %s", strings.Join(args, " "), appName))
+		if res.err != nil {
+			return res.err
+		}
+	}
+
+	return nil
+}
+
+func dokkuAppResourceLimitsClear(appName string, limits []DokkuAppResourceLimit, client *goph.Client) error {
+	for _, limit := range limits {
+		command := fmt.Sprintf("resource:limit-clear %s", appName)
+		if limit.ProcessType != "_default_" {
+			command = fmt.Sprintf("resource:limit-clear --process-type %s %s", shellescape.Quote(limit.ProcessType), appName)
+		}
+
+		res := run(client, command)
+		if res.err != nil {
+			return res.err
+		}
+	}
+
+	return nil
+}
+
 func dokkuAppNginxOptSet(appName string, property string, value string, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("nginx:set %s %s %s", appName, property, value))
 	return res.err
 }
 
-//
 func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) error {
 	if d.HasChange("name") {
 		old, _ := d.GetChange("name")
@@ -585,6 +777,19 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 					}
 				}
 			}
+		}
+	}
+
+	if d.HasChange("resource_limits") {
+		oldLimitsI, newLimitsI := d.GetChange("resource_limits")
+		oldLimits := resourceLimitsFromInterfaces(oldLimitsI.(*schema.Set).List())
+		newLimits := resourceLimitsFromInterfaces(newLimitsI.(*schema.Set).List())
+
+		if err := dokkuAppResourceLimitsClear(appName, oldLimits, client); err != nil {
+			return err
+		}
+		if err := dokkuAppResourceLimitsSet(appName, newLimits, client); err != nil {
+			return err
 		}
 	}
 
