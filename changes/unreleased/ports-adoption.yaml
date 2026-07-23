@@ -1,0 +1,2 @@
+kind: Fixed
+body: Avoid re-adding existing port mappings when Terraform first adopts them.

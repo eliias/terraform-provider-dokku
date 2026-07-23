@@ -750,9 +750,13 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		oldPortListI, newPortListI := d.GetChange("ports")
 		oldPortList := interfaceSliceToStrSlice(oldPortListI.(*schema.Set).List())
 		newPortList := interfaceSliceToStrSlice(newPortListI.(*schema.Set).List())
+		currentPortList, err := readAppPorts(appName, client)
+		if err != nil {
+			return err
+		}
 
-		oldPortLookup := sliceToLookupMap(oldPortList)
 		newPortLookup := sliceToLookupMap(newPortList)
+		currentPortLookup := sliceToLookupMap(currentPortList)
 
 		for _, p := range oldPortList {
 			if _, ok := newPortLookup[p]; !ok {
@@ -768,7 +772,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		}
 
 		for _, p := range newPortList {
-			if _, ok := oldPortLookup[p]; !ok {
+			if _, ok := currentPortLookup[p]; !ok {
 				if len(p) > 0 {
 					// new port missing, lets add it
 					res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
