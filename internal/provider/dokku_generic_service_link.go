@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -9,7 +10,23 @@ import (
 	"github.com/melbahja/goph"
 )
 
-//
+func importServiceLinkState(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	service, app, ok := strings.Cut(d.Id(), "/")
+	if !ok || service == "" || app == "" || strings.Contains(app, "/") {
+		return nil, fmt.Errorf("expected import ID in the form <service>/<app>")
+	}
+
+	if err := d.Set("service", service); err != nil {
+		return nil, err
+	}
+	if err := d.Set("app", app); err != nil {
+		return nil, err
+	}
+	d.SetId(fmt.Sprintf("%s-%s", service, app))
+
+	return []*schema.ResourceData{d}, nil
+}
+
 func serviceLinkCreate(d *schema.ResourceData, serviceName string, client *goph.Client) error {
 	options := make([]string, 2)
 
@@ -64,7 +81,6 @@ func serviceLinkRead(d *schema.ResourceData, serviceName string, client *goph.Cl
 	return res.err
 }
 
-//
 func serviceLinkDelete(d *schema.ResourceData, serviceName string, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("%s:unlink %s %s", serviceName, d.Get("service"), d.Get("app")))
 

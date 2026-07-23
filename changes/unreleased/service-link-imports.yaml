@@ -1,0 +1,2 @@
+kind: Added
+body: Support importing PostgreSQL and Redis service links.
