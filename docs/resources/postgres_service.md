@@ -24,6 +24,8 @@ Manages a Postgres database service, allowing for creation and configuration of 
 - `expose_on` (String) Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.
 - `image` (String) The Docker image to use for the Postgres service. If not specified, Dokku will use its default Postgres image.
 - `image_version` (String) The version of Postgres to use. If not specified, Dokku will use its default version.
+- `memory_mb` (Number) Container memory limit in megabytes. The Postgres plugin accepts this only when creating or cloning a service, so changing it replaces the service.
+- `shm_size` (String) Shared-memory size for the Postgres container, for example `256m`. The plugin accepts this only when creating, cloning, or upgrading a service, so changing it replaces the service.
 - `stopped` (Boolean) Whether the Postgres service is stopped. When true, the database service will not be running but data will be preserved.
 
 ### Read-Only

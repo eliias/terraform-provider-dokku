@@ -29,6 +29,8 @@ func NewMysqlServiceFromResourceData(d *schema.ResourceData) *DokkuMysqlService 
 			Stopped:      d.Get("stopped").(bool),
 			Exposed:      strings.Split(d.Get("expose_on").(string), " "),
 			CmdName:      "mysql",
+			MemoryMB:     d.Get("memory_mb").(int),
+			ShmSize:      d.Get("shm_size").(string),
 		},
 	}
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/melbahja/goph"
 )
 
@@ -45,18 +44,8 @@ func resourceMariadbService() *schema.Resource {
 				Optional:    true,
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 			},
-			"memory_mb": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				ValidateFunc: validation.IntAtLeast(1),
-				Description:  "Container memory limit in megabytes. The MariaDB plugin applies this when creating the service.",
-			},
-			"shm_size": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
-				Description:  "Shared-memory size for the MariaDB container, for example `256m`. The MariaDB plugin applies this when creating the service.",
-			},
+			"memory_mb": databaseServiceMemorySchema("MariaDB"),
+			"shm_size":  databaseServiceShmSizeSchema("MariaDB"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

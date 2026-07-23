@@ -10,33 +10,33 @@ import (
 
 func resourceRedisService() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Redis service in Dokku. Requires the Redis Dokku plugin to be installed.",
+		Description:   "Manages a Redis service in Dokku. Requires the Redis Dokku plugin to be installed.",
 		CreateContext: resourceRedisCreate,
 		ReadContext:   resourceRedisRead,
 		UpdateContext: resourceRedisUpdate,
 		DeleteContext: resourceRedisDestroy,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the Redis service.",
 			},
 			"image": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The Docker image to use for the Redis service. If not specified, Dokku will use its default Redis image.",
 			},
 			"image_version": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The version of Redis to use. If not specified, Dokku will use its default version.",
 			},
 			"stopped": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: "Whether the Redis service is stopped. When true, the Redis service will not be running but data will be preserved.",
 			},
 			"expose_on": {
@@ -45,6 +45,8 @@ func resourceRedisService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
+			"memory_mb": databaseServiceMemorySchema("Redis"),
+			"shm_size":  databaseServiceShmSizeSchema("Redis"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

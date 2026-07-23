@@ -38,7 +38,9 @@ func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisSer
 			Stopped:      isStopped,
 			Exposed:      strings.Split(d.Get("expose_on").(string), " "),
 
-			CmdName: "redis",
+			CmdName:  "redis",
+			MemoryMB: d.Get("memory_mb").(int),
+			ShmSize:  d.Get("shm_size").(string),
 		},
 	}
 }

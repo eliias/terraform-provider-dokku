@@ -10,28 +10,28 @@ import (
 
 func resourcePostgresService() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Postgres database service, allowing for creation and configuration of Postgres databases. Requires the Postgres Dokku plugin to be installed.",
+		Description:   "Manages a Postgres database service, allowing for creation and configuration of Postgres databases. Requires the Postgres Dokku plugin to be installed.",
 		CreateContext: resourcePgCreate,
 		ReadContext:   resourcePgRead,
 		UpdateContext: resourcePgUpdate,
 		DeleteContext: resourcePgDelete,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the Postgres service.",
 			},
 			"image": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The Docker image to use for the Postgres service. If not specified, Dokku will use its default Postgres image.",
 			},
 			// TODO: locked support
 			"image_version": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The version of Postgres to use. If not specified, Dokku will use its default version.",
 			},
 			// We can't support these yet as there's no way to
@@ -49,9 +49,9 @@ func resourcePostgresService() *schema.Resource {
 			// 	Optional: true,
 			// },
 			"stopped": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: "Whether the Postgres service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
 			"expose_on": {
@@ -60,6 +60,8 @@ func resourcePostgresService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
+			"memory_mb": databaseServiceMemorySchema("Postgres"),
+			"shm_size":  databaseServiceShmSizeSchema("Postgres"),
 			// TODO backup related stuff
 			// "backup_auth_access_key": {
 			// 	Type:     schema.TypeString,

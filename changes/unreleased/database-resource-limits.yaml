@@ -1,0 +1,2 @@
+kind: Added
+body: Consistent memory and shared-memory limits for Postgres, Redis, MySQL, and MariaDB services.

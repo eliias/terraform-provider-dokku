@@ -32,7 +32,9 @@ func NewDokkuPostgresServiceFromResourceData(d *schema.ResourceData) *DokkuPostg
 			Stopped: d.Get("stopped").(bool),
 			Exposed: strings.Split(d.Get("expose_on").(string), " "),
 
-			CmdName: "postgres",
+			CmdName:  "postgres",
+			MemoryMB: d.Get("memory_mb").(int),
+			ShmSize:  d.Get("shm_size").(string),
 		},
 	}
 }

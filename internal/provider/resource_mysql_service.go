@@ -10,33 +10,33 @@ import (
 
 func resourceMysqlService() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a MySQL service in Dokku. Requires the MySQL Dokku plugin to be installed.",
+		Description:   "Manages a MySQL service in Dokku. Requires the MySQL Dokku plugin to be installed.",
 		CreateContext: resourceMysqlCreate,
 		ReadContext:   resourceMysqlRead,
 		UpdateContext: resourceMysqlUpdate,
 		DeleteContext: resourceMysqlDelete,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the MySQL service.",
 			},
 			"image": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The Docker image to use for the MySQL service. If not specified, Dokku will use its default MySQL image.",
 			},
 			"image_version": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: "The version of MySQL to use. If not specified, Dokku will use its default version.",
 			},
 			"stopped": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: "Whether the MySQL service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
 			"expose_on": {
@@ -45,6 +45,8 @@ func resourceMysqlService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
+			"memory_mb": databaseServiceMemorySchema("MySQL"),
+			"shm_size":  databaseServiceShmSizeSchema("MySQL"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

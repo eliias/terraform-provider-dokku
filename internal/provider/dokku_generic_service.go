@@ -28,9 +28,10 @@ type DokkuGenericService struct {
 	Stopped bool
 	Exposed []string
 
-	CmdName  string
-	MemoryMB int
-	ShmSize  string
+	CmdName    string
+	MemoryMB   int
+	ShmSize    string
+	LimitsRead bool
 }
 
 func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
@@ -43,6 +44,14 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
 	d.Set("expose_on", s.buildExposedPortsString())
+	if s.LimitsRead {
+		if s.MemoryMB > 0 {
+			d.Set("memory_mb", s.MemoryMB)
+		} else {
+			d.Set("memory_mb", nil)
+		}
+		d.Set("shm_size", s.ShmSize)
+	}
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
@@ -147,6 +156,12 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 			return err
 		}
 		service.Exposed = parsedPorts
+	}
+
+	if serviceInfo != nil && !service.Stopped {
+		if err := readDatabaseServiceLimits(service, client); err != nil {
+			return err
+		}
 	}
 
 	return nil
