@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -19,6 +18,14 @@ type SshOutput struct {
 	err    error
 }
 
+// OpenSSH defaults MaxSessions to 10 per connection. Terraform also defaults
+// to 10 concurrent resource operations, and individual resource reads often
+// open follow-up sessions before other reads finish. Keep a small margin so
+// the shared provider connection never exhausts the server's channel limit.
+const maxConcurrentSSHSessions = 8
+
+var sshSessionSlots = make(chan struct{}, maxConcurrentSSHSessions)
+
 // Run a command using the provided SSH client
 //
 // strings to be removed from logging can also be provided via `sensitiveStrings`
@@ -32,6 +39,11 @@ func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput 
 
 	log.Printf("[DEBUG] SSH: %s", cmdSafe)
 
+	sshSessionSlots <- struct{}{}
+	defer func() {
+		<-sshSessionSlots
+	}()
+
 	stdoutRaw, err := client.Run(cmd)
 
 	stdout := string(stdoutRaw)
@@ -41,11 +53,11 @@ func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput 
 
 	if err != nil {
 		status := parseStatusCode(err.Error())
-		log.Printf("[DEBUG] SSH: error status %d from %s", status, cmdSafe)
+		log.Printf("[DEBUG] SSH: error status %d from %s: %s", status, cmdSafe, err)
 		return SshOutput{
 			stdout: stdout,
 			status: status,
-			err:    errors.New(fmt.Sprintf("Error [%d]: %s", status, stdout)),
+			err:    fmt.Errorf("SSH command failed with status %d: %s: %w", status, stdout, err),
 		}
 	} else {
 		return SshOutput{

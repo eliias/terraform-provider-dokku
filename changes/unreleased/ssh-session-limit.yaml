@@ -1,0 +1,2 @@
+kind: Fixed
+body: Limit concurrent SSH channels so Terraform's default parallelism does not exhaust OpenSSH MaxSessions.
