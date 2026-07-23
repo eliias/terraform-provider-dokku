@@ -1,0 +1,2 @@
+kind: Fixed
+body: Empty nginx bind-address reports now normalize to Dokku defaults.

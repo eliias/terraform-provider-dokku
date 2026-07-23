@@ -327,13 +327,13 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 	// as of writing (dokku v0.25.7). We therefore make our own assumptions here
 	// if these properties contain blanks.
 
-	if ipv4Addr, ok := nginxOpts["Nginx bind address ipv4"]; ok {
+	if ipv4Addr, ok := nginxOpts["Nginx bind address ipv4"]; ok && ipv4Addr != "" {
 		report.BindAddressIpv4 = ipv4Addr
 	} else {
 		report.BindAddressIpv4 = "0.0.0.0"
 	}
 
-	if ipv6Addr, ok := nginxOpts["Nginx bind address ipv6"]; ok {
+	if ipv6Addr, ok := nginxOpts["Nginx bind address ipv6"]; ok && ipv6Addr != "" {
 		report.BindAddressIpv6 = ipv6Addr
 	} else {
 		report.BindAddressIpv6 = "::"
