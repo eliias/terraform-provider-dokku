@@ -12,9 +12,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 var DOKKU_VERSION semver.Version
+var DOKKU_COMMAND_PREFIX string
+
+const testedDokkuVersions = ">=0.30.0 <0.39.0"
 
 // Provider -
 func Provider() *schema.Provider {
@@ -40,15 +44,42 @@ func Provider() *schema.Provider {
 			},
 			"ssh_cert": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_CERT", nil),
+				AtLeastOneOf: []string{
+					"ssh_cert",
+					"ssh_agent_socket",
+				},
+				ConflictsWith: []string{
+					"ssh_agent_socket",
+				},
 				Description: "Either a path to the SSH private key for connecting to your Dokku server OR the source for an SSH key directly. Can be set via DOKKU_SSH_CERT environment variable.",
+			},
+			"ssh_agent_socket": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_AGENT_SOCKET", nil),
+				AtLeastOneOf: []string{
+					"ssh_cert",
+					"ssh_agent_socket",
+				},
+				ConflictsWith: []string{
+					"ssh_cert",
+					"ssh_passphrase",
+				},
+				Description: "Path to an SSH agent Unix socket. Can be set via DOKKU_SSH_AGENT_SOCKET environment variable.",
 			},
 			"ssh_passphrase": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_PASSPHRASE", nil),
 				Description: "An optional passphrase to be used in conjunction with the provided SSH key.",
+			},
+			"ssh_command_prefix": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_COMMAND_PREFIX", ""),
+				Description: "Optional command prefix for ordinary SSH users. Set to 'dokku' when connecting as root instead of Dokku's restricted user.",
 			},
 			"fail_on_untested_version": {
 				Type:        schema.TypeBool,
@@ -85,34 +116,48 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	port := uint(d.Get("ssh_port").(int))
 	ssh_cert := d.Get("ssh_cert").(string)
 	ssh_passphrase := d.Get("ssh_passphrase").(string)
+	sshAgentSocket := d.Get("ssh_agent_socket").(string)
+	DOKKU_COMMAND_PREFIX = d.Get("ssh_command_prefix").(string)
 
 	var auth goph.Auth
 	var err error
-	if ssh_passphrase != "" {
-		_, err = ssh.ParsePrivateKeyWithPassphrase([]byte(ssh_cert), []byte(ssh_passphrase))
-	} else {
-		_, err = ssh.ParsePrivateKey([]byte(ssh_cert))
-	}
+	var agentConn net.Conn
 
-	if err != nil {
-		log.Printf("[DEBUG] attempting to load SSH cert from file path %s\n", ssh_cert)
-		log.Printf("[DEBUG] %v\n", err)
-		// could not parse a key directly, try it as a filepath
-		var err error
-		auth, err = goph.Key(ssh_cert, ssh_passphrase)
+	if sshAgentSocket != "" {
+		log.Printf("[DEBUG] attempting to use SSH agent socket %s\n", sshAgentSocket)
+		agentConn, err = net.Dial("unix", sshAgentSocket)
 		if err != nil {
-			return nil, diag.Errorf("Attempted to load private key from file but failed")
+			return nil, diag.Errorf("Could not connect to SSH agent socket: %v", err)
 		}
-	}
-
-	if auth == nil {
-		log.Printf("[DEBUG] SSH cert looks like its being provided inline\n")
-		var err error
-		auth, err = goph.RawKey(ssh_cert, ssh_passphrase)
+		defer agentConn.Close()
+		auth = goph.Auth{
+			ssh.PublicKeysCallback(agent.NewClient(agentConn).Signers),
+		}
+	} else {
+		if ssh_passphrase != "" {
+			_, err = ssh.ParsePrivateKeyWithPassphrase([]byte(ssh_cert), []byte(ssh_passphrase))
+		} else {
+			_, err = ssh.ParsePrivateKey([]byte(ssh_cert))
+		}
 
 		if err != nil {
-			// could not proceed with inline ssh cert
-			return nil, diag.Errorf("Could not auth with inline SSH key: %v", err)
+			log.Printf("[DEBUG] attempting to load SSH cert from file path %s\n", ssh_cert)
+			log.Printf("[DEBUG] %v\n", err)
+			// could not parse a key directly, try it as a filepath
+			auth, err = goph.Key(ssh_cert, ssh_passphrase)
+			if err != nil {
+				return nil, diag.Errorf("Attempted to load private key from file but failed: %v", err)
+			}
+		}
+
+		if auth == nil {
+			log.Printf("[DEBUG] SSH cert looks like its being provided inline\n")
+			auth, err = goph.RawKey(ssh_cert, ssh_passphrase)
+
+			if err != nil {
+				// could not proceed with inline ssh cert
+				return nil, diag.Errorf("Could not auth with inline SSH key: %v", err)
+			}
 		}
 	}
 
@@ -179,11 +224,10 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
-	testedVersions := ">=0.30.0 <0.37.0"
-	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
+	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedDokkuVersions)
 
 	if err == nil {
-		compat, _ := semver.ParseRange(testedVersions)
+		compat, _ := semver.ParseRange(testedDokkuVersions)
 
 		if !compat(hostVersion) {
 
@@ -200,7 +244,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 			return client, diags
 		}
 	} else {
-		return client, diag.Errorf("Could not detect dokku version - tested version range: %s", testedVersions)
+		return client, diag.Errorf("Could not detect dokku version - tested version range: %s", testedDokkuVersions)
 	}
 
 	return client, diags

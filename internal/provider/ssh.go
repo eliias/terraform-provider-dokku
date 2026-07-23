@@ -23,6 +23,7 @@ type SshOutput struct {
 //
 // strings to be removed from logging can also be provided via `sensitiveStrings`
 func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput {
+	cmd = prefixedCommand(cmd)
 
 	cmdSafe := cmd
 	for _, toReplace := range sensitiveStrings {
@@ -53,6 +54,14 @@ func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput 
 			err:    nil,
 		}
 	}
+}
+
+func prefixedCommand(cmd string) string {
+	prefix := strings.TrimSpace(DOKKU_COMMAND_PREFIX)
+	if prefix == "" {
+		return cmd
+	}
+	return prefix + " " + cmd
 }
 
 // TODO add some debug logging

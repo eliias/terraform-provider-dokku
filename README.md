@@ -20,7 +20,7 @@
 
 This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Not all configuration options are currently supported.
 
-This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+This provider supports Dokku >= v0.30 and < v0.39, although it can be forced to run against any version. [Read more](#Tested-dokku-versions).
 
 ## Key Features
 
@@ -50,14 +50,26 @@ terraform {
 An SSH key can be provided as an absolute path or inline.
 
 ```hcl
-provider "dokku" {
-  ssh_host = "dokku.me"
-  ssh_user = "dokku"
-  ssh_port = 8022
-  ssh_cert = "/home/user/.ssh/dokku-cert" # can also provide an SSH key directly as a string
-  ssh_passphrase = "this is optional"
-  # skip_known_hosts_check = true
-}
+	provider "dokku" {
+	  ssh_host = "dokku.me"
+	  ssh_user = "dokku"
+	  ssh_port = 8022
+	  ssh_cert = "/home/user/.ssh/dokku-cert" # can also provide an SSH key directly as a string
+	  ssh_passphrase = "this is optional"
+	  # skip_known_hosts_check = true
+	}
+
+	# Alternatively, authenticate through an SSH agent. This is useful for
+	# agents such as 1Password that do not expose private key material.
+	#
+	# Ordinary SSH users such as root also need a command prefix because they
+	# do not have Dokku's forced-command setup.
+	provider "dokku" {
+	  ssh_host          = "dokku.me"
+	  ssh_user          = "root"
+	  ssh_agent_socket  = "/path/to/agent.sock"
+	  ssh_command_prefix = "dokku"
+	}
 ```
 
 3. Declare resources. See examples for more info.
@@ -85,7 +97,7 @@ resource "dokku_app" "rails-app" {
 
 ### Tested dokku versions
 
-The provider is currently tested against versions 0.30 through to 0.35 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
+The provider currently permits Dokku versions 0.30 through 0.38. Moving forward, the supported range may change, with older versions being dropped as newer ones become available.
 
 The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
 

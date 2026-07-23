@@ -1,0 +1,2 @@
+kind: Added
+body: SSH agent authentication and command prefixes for ordinary SSH users.
