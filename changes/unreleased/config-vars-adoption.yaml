@@ -1,0 +1,2 @@
+kind: Fixed
+body: Avoid restarting apps when adopting config variables that already have their desired values.

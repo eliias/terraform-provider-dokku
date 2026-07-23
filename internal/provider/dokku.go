@@ -673,19 +673,20 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 
 		oldConfigVarsI, newConfigVarsI := d.GetChange("config_vars")
 		oldConfigVars := mapOfInterfacesToMapOfStrings(oldConfigVarsI.(map[string]interface{}))
-		newConfigVar := mapOfInterfacesToMapOfStrings(newConfigVarsI.(map[string]interface{}))
+		newConfigVars := mapOfInterfacesToMapOfStrings(newConfigVarsI.(map[string]interface{}))
 
-		keysToDelete := calculateMissingKeys(newConfigVar, oldConfigVars)
+		keysToDelete := calculateMissingKeys(newConfigVars, oldConfigVars)
 
 		dokkuAppConfigVarsUnset(app, keysToDelete, client)
 
-		// TODO shouldn't need to duplicate below we already have config set function
-		// This is basically an upsert, and will update values even if they haven't changed
+		// Avoid restarting an app when Terraform first adopts variables that
+		// already have the desired values in Dokku.
+		configVarsToUpsert := changedConfigVars(newConfigVars, readAppConfig(appName, client))
 
 		keysToUpsert := make([]string, 0)
 		upsertParts := make([]string, 0)
 		secrets := make([]string, 0)
-		for newK, newV := range newConfigVar {
+		for newK, newV := range configVarsToUpsert {
 			keysToUpsert = append(keysToUpsert, newK)
 			upsertParts = append(upsertParts, fmt.Sprintf("%s=%s", newK, shellescape.Quote(newV)))
 			secrets = append(secrets, newV)
@@ -804,4 +805,14 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 	}
 
 	return nil
+}
+
+func changedConfigVars(desired, current map[string]string) map[string]string {
+	changed := make(map[string]string)
+	for key, desiredValue := range desired {
+		if currentValue, ok := current[key]; !ok || currentValue != desiredValue {
+			changed[key] = desiredValue
+		}
+	}
+	return changed
 }
