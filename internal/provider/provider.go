@@ -102,6 +102,8 @@ func Provider() *schema.Provider {
 			"dokku_redis_service_link":      resourceRedisServiceLink(),
 			"dokku_mysql_service":           resourceMysqlService(),
 			"dokku_mysql_service_link":      resourceMysqlServiceLink(),
+			"dokku_mariadb_service":         resourceMariadbService(),
+			"dokku_mariadb_service_link":    resourceMariadbServiceLink(),
 			"dokku_clickhouse_service":      resourceClickhouseService(),
 			"dokku_clickhouse_service_link": resourceClickhouseServiceLink(),
 			"dokku_storage_entry":           resourceStorageEntry(),

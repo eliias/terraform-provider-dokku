@@ -28,7 +28,9 @@ type DokkuGenericService struct {
 	Stopped bool
 	Exposed []string
 
-	CmdName string
+	CmdName  string
+	MemoryMB int
+	ShmSize  string
 }
 
 func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
@@ -61,6 +63,18 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 	if service.ImageVersion != "" {
 		if _, ok := flagsToAdd["image-version"]; ok || addAllFlags {
 			flags = append(flags, fmt.Sprintf("--image-version %s", service.ImageVersion))
+		}
+	}
+
+	if service.MemoryMB > 0 {
+		if _, ok := flagsToAdd["memory"]; ok || addAllFlags {
+			flags = append(flags, fmt.Sprintf("--memory %d", service.MemoryMB))
+		}
+	}
+
+	if service.ShmSize != "" {
+		if _, ok := flagsToAdd["shm-size"]; ok || addAllFlags {
+			flags = append(flags, fmt.Sprintf("--shm-size %s", service.ShmSize))
 		}
 	}
 
