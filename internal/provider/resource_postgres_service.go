@@ -60,8 +60,11 @@ func resourcePostgresService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
-			"memory_mb": databaseServiceMemorySchema("Postgres"),
-			"shm_size":  databaseServiceShmSizeSchema("Postgres"),
+			"memory_mb":            databaseServiceMemorySchema("Postgres"),
+			"shm_size":             databaseServiceShmSizeSchema("Postgres"),
+			"initial_network":      databaseServiceInitialNetworkSchema("Postgres"),
+			"post_create_networks": databaseServicePostNetworkSchema("Postgres", "after creation"),
+			"post_start_networks":  databaseServicePostNetworkSchema("Postgres", "after startup"),
 			// TODO backup related stuff
 			// "backup_auth_access_key": {
 			// 	Type:     schema.TypeString,

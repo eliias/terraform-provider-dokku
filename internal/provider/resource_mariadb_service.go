@@ -44,8 +44,11 @@ func resourceMariadbService() *schema.Resource {
 				Optional:    true,
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 			},
-			"memory_mb": databaseServiceMemorySchema("MariaDB"),
-			"shm_size":  databaseServiceShmSizeSchema("MariaDB"),
+			"memory_mb":            databaseServiceMemorySchema("MariaDB"),
+			"shm_size":             databaseServiceShmSizeSchema("MariaDB"),
+			"initial_network":      databaseServiceInitialNetworkSchema("MariaDB"),
+			"post_create_networks": databaseServicePostNetworkSchema("MariaDB", "after creation"),
+			"post_start_networks":  databaseServicePostNetworkSchema("MariaDB", "after startup"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

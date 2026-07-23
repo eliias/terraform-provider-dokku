@@ -45,8 +45,11 @@ func resourceRedisService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
-			"memory_mb": databaseServiceMemorySchema("Redis"),
-			"shm_size":  databaseServiceShmSizeSchema("Redis"),
+			"memory_mb":            databaseServiceMemorySchema("Redis"),
+			"shm_size":             databaseServiceShmSizeSchema("Redis"),
+			"initial_network":      databaseServiceInitialNetworkSchema("Redis"),
+			"post_create_networks": databaseServicePostNetworkSchema("Redis", "after creation"),
+			"post_start_networks":  databaseServicePostNetworkSchema("Redis", "after startup"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

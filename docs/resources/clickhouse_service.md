@@ -21,7 +21,12 @@ Manages a ClickHouse service in Dokku. Requires the ClickHouse Dokku plugin to b
 
 ### Optional
 
+- `initial_network` (String) Initial Docker network for the ClickHouse service container.
+- `post_create_networks` (Set of String) Docker networks attached to the ClickHouse service container after creation.
+- `post_start_networks` (Set of String) Docker networks attached to the ClickHouse service container after startup.
 - `stopped` (Boolean) Whether the ClickHouse service is stopped. When true, the database service will not be running but data will be preserved.
+
+Network settings require dokku-clickhouse 1.2.0 or newer. Changing them restarts a running service so the plugin can recreate its container with the desired network attachments.
 
 ### Read-Only
 

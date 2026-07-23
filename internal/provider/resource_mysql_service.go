@@ -45,8 +45,11 @@ func resourceMysqlService() *schema.Resource {
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
-			"memory_mb": databaseServiceMemorySchema("MySQL"),
-			"shm_size":  databaseServiceShmSizeSchema("MySQL"),
+			"memory_mb":            databaseServiceMemorySchema("MySQL"),
+			"shm_size":             databaseServiceShmSizeSchema("MySQL"),
+			"initial_network":      databaseServiceInitialNetworkSchema("MySQL"),
+			"post_create_networks": databaseServicePostNetworkSchema("MySQL", "after creation"),
+			"post_start_networks":  databaseServicePostNetworkSchema("MySQL", "after startup"),
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

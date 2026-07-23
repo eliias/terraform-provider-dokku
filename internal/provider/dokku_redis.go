@@ -41,6 +41,10 @@ func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisSer
 			CmdName:  "redis",
 			MemoryMB: d.Get("memory_mb").(int),
 			ShmSize:  d.Get("shm_size").(string),
+
+			InitialNetwork:     d.Get("initial_network").(string),
+			PostCreateNetworks: serviceNetworkSet(d, "post_create_networks"),
+			PostStartNetworks:  serviceNetworkSet(d, "post_start_networks"),
 		},
 	}
 }

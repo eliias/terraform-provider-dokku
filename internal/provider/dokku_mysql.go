@@ -23,14 +23,17 @@ func NewMysqlService(name string) *DokkuMysqlService {
 func NewMysqlServiceFromResourceData(d *schema.ResourceData) *DokkuMysqlService {
 	return &DokkuMysqlService{
 		DokkuGenericService: DokkuGenericService{
-			Name:         d.Get("name").(string),
-			Image:        d.Get("image").(string),
-			ImageVersion: d.Get("image_version").(string),
-			Stopped:      d.Get("stopped").(bool),
-			Exposed:      strings.Split(d.Get("expose_on").(string), " "),
-			CmdName:      "mysql",
-			MemoryMB:     d.Get("memory_mb").(int),
-			ShmSize:      d.Get("shm_size").(string),
+			Name:               d.Get("name").(string),
+			Image:              d.Get("image").(string),
+			ImageVersion:       d.Get("image_version").(string),
+			Stopped:            d.Get("stopped").(bool),
+			Exposed:            strings.Split(d.Get("expose_on").(string), " "),
+			CmdName:            "mysql",
+			MemoryMB:           d.Get("memory_mb").(int),
+			ShmSize:            d.Get("shm_size").(string),
+			InitialNetwork:     d.Get("initial_network").(string),
+			PostCreateNetworks: serviceNetworkSet(d, "post_create_networks"),
+			PostStartNetworks:  serviceNetworkSet(d, "post_start_networks"),
 		},
 	}
 }

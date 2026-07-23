@@ -24,9 +24,14 @@ Manages a Redis service in Dokku. Requires the Redis Dokku plugin to be installe
 - `expose_on` (String) Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.
 - `image` (String) The Docker image to use for the Redis service. If not specified, Dokku will use its default Redis image.
 - `image_version` (String) The version of Redis to use. If not specified, Dokku will use its default version.
+- `initial_network` (String) Initial Docker network for the Redis service container.
 - `memory_mb` (Number) Container memory limit in megabytes. The Redis plugin accepts this only when creating or cloning a service, so changing it replaces the service.
+- `post_create_networks` (Set of String) Docker networks attached to the Redis service container after creation.
+- `post_start_networks` (Set of String) Docker networks attached to the Redis service container after startup.
 - `shm_size` (String) Shared-memory size for the Redis container, for example `256m`. The plugin accepts this only when creating, cloning, or upgrading a service, so changing it replaces the service.
 - `stopped` (Boolean) Whether the Redis service is stopped. When true, the Redis service will not be running but data will be preserved.
+
+Network settings require dokku-redis 1.29.0 or newer. Changing them restarts a running service so the plugin can recreate its container with the desired network attachments.
 
 ### Read-Only
 

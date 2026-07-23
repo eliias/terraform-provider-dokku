@@ -21,9 +21,14 @@ Manages a MariaDB service in Dokku. Requires the MariaDB Dokku plugin to be inst
 - `expose_on` (String) Network address and port to expose the service on. If not specified, the service remains unexposed.
 - `image` (String) The Docker image to use for the MariaDB service. If not specified, Dokku uses its default MariaDB image.
 - `image_version` (String) The MariaDB version. If not specified, Dokku uses its default version.
+- `initial_network` (String) Initial Docker network for the MariaDB service container.
 - `memory_mb` (Number) Container memory limit in megabytes. The MariaDB plugin accepts this only when creating or cloning a service, so changing it replaces the service.
+- `post_create_networks` (Set of String) Docker networks attached to the MariaDB service container after creation.
+- `post_start_networks` (Set of String) Docker networks attached to the MariaDB service container after startup.
 - `shm_size` (String) Shared-memory size for the MariaDB container, for example `256m`. The plugin accepts this only when creating, cloning, or upgrading a service, so changing it replaces the service.
 - `stopped` (Boolean) Whether the MariaDB service is stopped.
+
+Network settings require dokku-mariadb 1.28.0 or newer. Changing them restarts a running service so the plugin can recreate its container with the desired network attachments.
 
 ### Read-Only
 

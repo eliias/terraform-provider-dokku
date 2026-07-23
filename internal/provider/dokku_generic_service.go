@@ -7,10 +7,13 @@ package provider
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
+
+	"al.essio.dev/pkg/shellescape"
 )
 
 type DokkuGenericServiceI interface {
@@ -32,6 +35,10 @@ type DokkuGenericService struct {
 	MemoryMB   int
 	ShmSize    string
 	LimitsRead bool
+
+	InitialNetwork     string
+	PostCreateNetworks []string
+	PostStartNetworks  []string
 }
 
 func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
@@ -52,6 +59,9 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 		}
 		d.Set("shm_size", s.ShmSize)
 	}
+	d.Set("initial_network", s.InitialNetwork)
+	d.Set("post_create_networks", s.PostCreateNetworks)
+	d.Set("post_start_networks", s.PostStartNetworks)
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
@@ -84,6 +94,28 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 	if service.ShmSize != "" {
 		if _, ok := flagsToAdd["shm-size"]; ok || addAllFlags {
 			flags = append(flags, fmt.Sprintf("--shm-size %s", service.ShmSize))
+		}
+	}
+
+	if service.InitialNetwork != "" {
+		if _, ok := flagsToAdd["initial-network"]; ok || addAllFlags {
+			flags = append(flags, fmt.Sprintf("--initial-network %s", shellescape.Quote(service.InitialNetwork)))
+		}
+	}
+
+	if len(service.PostCreateNetworks) > 0 {
+		if _, ok := flagsToAdd["post-create-network"]; ok || addAllFlags {
+			networks := append([]string(nil), service.PostCreateNetworks...)
+			sort.Strings(networks)
+			flags = append(flags, fmt.Sprintf("--post-create-network %s", shellescape.Quote(strings.Join(networks, ","))))
+		}
+	}
+
+	if len(service.PostStartNetworks) > 0 {
+		if _, ok := flagsToAdd["post-start-network"]; ok || addAllFlags {
+			networks := append([]string(nil), service.PostStartNetworks...)
+			sort.Strings(networks)
+			flags = append(flags, fmt.Sprintf("--post-start-network %s", shellescape.Quote(strings.Join(networks, ","))))
 		}
 	}
 
@@ -157,6 +189,9 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 		}
 		service.Exposed = parsedPorts
 	}
+	service.InitialNetwork = serviceInfo["initial network"]
+	service.PostCreateNetworks = parseServiceNetworks(serviceInfo["post create network"])
+	service.PostStartNetworks = parseServiceNetworks(serviceInfo["post start network"])
 
 	if serviceInfo != nil && !service.Stopped {
 		if err := readDatabaseServiceLimits(service, client); err != nil {
@@ -306,7 +341,12 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		}
 	}
 
-	if d.HasChange("stopped") {
+	networkRestartHandled, err := updateDatabaseServiceNetworks(service, d, client)
+	if err != nil {
+		return err
+	}
+
+	if d.HasChange("stopped") && !networkRestartHandled {
 		var res SshOutput
 		if d.Get("stopped").(bool) {
 			res = run(client, fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))

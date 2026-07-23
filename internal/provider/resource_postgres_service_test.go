@@ -33,6 +33,51 @@ resource "dokku_postgres_service" "test" {
 	})
 }
 
+func TestAccPostgresServiceNetwork(t *testing.T) {
+	suffix := acctest.RandString(10)
+	serviceName := fmt.Sprintf("pg-network-%s", suffix)
+	networkName := fmt.Sprintf("pg-network-%s", suffix)
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_network" "test" {
+  name = %q
+}
+
+resource "dokku_postgres_service" "test" {
+  name                 = %q
+  post_create_networks = [dokku_network.test.name]
+}
+`, networkName, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					resource.TestCheckTypeSetElemAttr("dokku_postgres_service.test", "post_create_networks.*", networkName),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_network" "test" {
+  name = %q
+}
+
+resource "dokku_postgres_service" "test" {
+  name                = %q
+  post_start_networks = [dokku_network.test.name]
+}
+`, networkName, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					resource.TestCheckTypeSetElemAttr("dokku_postgres_service.test", "post_start_networks.*", networkName),
+				),
+			},
+		},
+	})
+}
+
 func TestAccPostgresServiceImage(t *testing.T) {
 	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
 
