@@ -104,6 +104,8 @@ func Provider() *schema.Provider {
 			"dokku_mysql_service_link":      resourceMysqlServiceLink(),
 			"dokku_clickhouse_service":      resourceClickhouseService(),
 			"dokku_clickhouse_service_link": resourceClickhouseServiceLink(),
+			"dokku_storage_entry":           resourceStorageEntry(),
+			"dokku_storage_mount":           resourceStorageMount(),
 		},
 		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,

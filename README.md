@@ -30,6 +30,7 @@ This provider supports Dokku >= v0.30 and < v0.39, although it can be forced to 
 - 🌐 **Domains**: Configure custom domains for your apps
 - 🔧 **Config**: Manage environment variables and app settings
 - 📊 **Resource Limits**: Set app-wide or per-process CPU, memory, network, and GPU limits
+- 💾 **Storage**: Register persistent storage entries and mount them into apps
 
 ## How To Use
 
