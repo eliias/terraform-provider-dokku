@@ -106,10 +106,15 @@ func Provider() *schema.Provider {
 			"dokku_mariadb_service_link":    resourceMariadbServiceLink(),
 			"dokku_clickhouse_service":      resourceClickhouseService(),
 			"dokku_clickhouse_service_link": resourceClickhouseServiceLink(),
+			"dokku_network":                 resourceNetwork(),
+			"dokku_app_network":             resourceAppNetwork(),
+			"dokku_network_global":          resourceNetworkGlobal(),
 			"dokku_storage_entry":           resourceStorageEntry(),
 			"dokku_storage_mount":           resourceStorageMount(),
 		},
-		DataSourcesMap:       map[string]*schema.Resource{},
+		DataSourcesMap: map[string]*schema.Resource{
+			"dokku_network": dataSourceNetwork(),
+		},
 		ConfigureContextFunc: providerConfigure,
 	}
 }

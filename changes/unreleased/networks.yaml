@@ -1,0 +1,2 @@
+kind: Added
+body: Dokku-managed networks, app network properties, and read-only metadata for external Docker networks.
