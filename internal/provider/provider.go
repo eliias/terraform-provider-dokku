@@ -108,6 +108,7 @@ func Provider() *schema.Provider {
 			"dokku_clickhouse_service_link": resourceClickhouseServiceLink(),
 			"dokku_network":                 resourceNetwork(),
 			"dokku_app_network":             resourceAppNetwork(),
+			"dokku_app_docker_options":      resourceAppDockerOptions(),
 			"dokku_network_global":          resourceNetworkGlobal(),
 			"dokku_storage_entry":           resourceStorageEntry(),
 			"dokku_storage_mount":           resourceStorageMount(),

@@ -1,0 +1,2 @@
+kind: Added
+body: Add authoritative phase-scoped Docker options resource with import support.
