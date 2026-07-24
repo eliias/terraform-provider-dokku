@@ -44,6 +44,10 @@ official Dokku datastore plugin repositories.
 | App resource limits | Partial | App-wide and per-process CPU, memory, swap, network, ingress, egress, and NVIDIA GPU limits |
 | Storage | Supported | Global entries and app mounts with phases, process type, read-only mode, subpaths, chown, and volume options |
 | App networks | Supported | Initial network, post-create and post-deploy attachments, interface binding, TLD, static listener, inherited effective values |
+| App Docker options | Supported | Build, deploy, and run options with preservation prefixes for integration-owned values |
+| Builder settings | Partial | Builder selection, build directory, and cleanup behavior |
+| Proxy settings | Partial | Proxy enabled state and explicit proxy selection |
+| nginx settings | Partial | Request body size and common proxy buffer settings; bind addresses remain on the app resource |
 | Global networks | Supported | Global initial network, attachment phases, interface binding, and TLD |
 | Docker networks | Supported | Managed network lifecycle and metadata data source for managed or external networks |
 | PostgreSQL | Partial | Service lifecycle, image/version, stopped state, exposure, links, aliases, query strings, creation limits, and network phases |
@@ -70,15 +74,13 @@ official Dokku datastore plugin repositories.
 | App creation/global properties | P0 | Disable autocreation, deploy locking, and other persistent `apps` properties |
 | Global and per-app config | P0 | Preserve inheritance and distinguish raw from effective values |
 | Global and per-app domains | P0 | Enabled state, global domains, app domains, and inherited values |
-| Builder selection | P0 | Auto/detected, Dockerfile, herokuish, lambda, nixpacks, pack, railpack, null, and custom builders |
-| Builder-specific properties | P0 | Dockerfile path, build directory, cleanup, herokuish allowance, and builder manifest paths |
+| Remaining builder properties | P1 | Dockerfile path, herokuish allowance, and builder manifest paths |
 | Scheduler selection | P0 | docker-local, k3s, null, and custom schedulers |
 | docker-local scheduler properties | P0 | Init process and parallel schedule count |
 | Process scaling | P0 | Desired scale by process type without treating deploy status as configuration |
 | Process properties | P0 | Procfile path, restart policy, skip-deploy, start command, stop timeout |
 | Resource reservations | P0 | Reservations parallel to the existing limit model |
 | Deployment checks | P0 | Disabled/skipped checks and wait-to-retire |
-| Docker options | P0 | Build/deploy/run flags with safe phase-aware reconciliation |
 | `app.json` | P1 | Manifest path and supported persistent app-json behavior |
 | Cron definitions | P1 | Declarative scheduled commands |
 | Git/repository properties | P1 | Deploy branch, archive limits, keep-git-dir, source image, and related persistent settings |
@@ -89,8 +91,8 @@ official Dokku datastore plugin repositories.
 
 | Feature | Priority | Notes |
 | --- | --- | --- |
-| Generic proxy | P0 | Proxy type, enabled/disabled state, HTTP port, and HTTPS port |
-| nginx properties | P0 | All values exposed by `nginx:report`, with raw/effective separation |
+| Remaining generic proxy properties | P1 | Explicit HTTP and HTTPS property management independent of port mappings |
+| Remaining nginx properties | P1 | Complete `nginx:report` coverage with raw/effective separation |
 | Custom nginx config state | P0 | Detect and safely manage the selected config path; host file contents remain Ansible-owned |
 | HTTP authentication | P1 | Enabled state, users through sensitive input, and allowed IPs |
 | Redirect plugin | P1 | Persistent redirect definitions |
