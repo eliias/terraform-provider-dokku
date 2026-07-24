@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="#key-features">Key Features</a> •
+  <a href="./docs/feature-support.md">Feature Support</a> •
   <a href="#how-to-use">How To Use</a> •
   <a href="#developing">Developing</a> •
   <a href="#full-example">Full Example</a> •
@@ -31,6 +32,11 @@ This provider supports Dokku >= v0.30 and < v0.39, although it can be forced to 
 - 🔧 **Config**: Manage environment variables and app settings
 - 📊 **Resource Limits**: Set app-wide or per-process CPU, memory, network, and GPU limits
 - 💾 **Storage**: Register persistent storage entries and mount them into apps
+- 🌐 **Networks**: Manage Dokku networks, app attachments, global defaults, and datastore network phases
+
+The [feature support matrix](./docs/feature-support.md) tracks coverage of
+Dokku's declarative configuration surface and the remaining implementation
+roadmap.
 
 ## How To Use
 
