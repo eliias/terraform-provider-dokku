@@ -116,6 +116,7 @@ func Provider() *schema.Provider {
 			"dokku_app_git":                    resourceAppGit(),
 			"dokku_app_scheduler":              resourceAppScheduler(),
 			"dokku_app_scheduler_docker_local": resourceAppSchedulerDockerLocal(),
+			"dokku_app_process":                resourceAppProcess(),
 			"dokku_network_global":             resourceNetworkGlobal(),
 			"dokku_storage_entry":              resourceStorageEntry(),
 			"dokku_storage_mount":              resourceStorageMount(),

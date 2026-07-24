@@ -48,6 +48,7 @@ official Dokku datastore plugin repositories.
 | App Docker options | Supported | Build, deploy, and run options with preservation prefixes for integration-owned values |
 | Builder settings | Partial | Builder selection, build directory, and cleanup behavior |
 | Scheduler settings | Supported | Generic scheduler selection and shell plus docker-local init-process and deployment parallelism, with raw/effective inheritance |
+| Process settings | Supported | Procfile, restart, restore, deploy, start-command, stop-timeout, exact scale, inherited values, and runtime status |
 | Proxy settings | Partial | Proxy enabled state and explicit proxy selection |
 | nginx settings | Partial | Request body size and common proxy buffer settings; bind addresses remain on the app resource |
 | Deployment checks | Partial | App-wide disabled state with process-specific skip reporting |
@@ -78,8 +79,6 @@ official Dokku datastore plugin repositories.
 | Global and per-app config | P0 | Preserve inheritance and distinguish raw from effective values |
 | Global domain defaults | P1 | Global domains and inherited raw/effective separation |
 | Remaining builder properties | P1 | Dockerfile path, herokuish allowance, and builder manifest paths |
-| Process scaling | P0 | Desired scale by process type without treating deploy status as configuration |
-| Process properties | P0 | Procfile path, restart policy, skip-deploy, start command, stop timeout |
 | Resource reservations | P0 | Reservations parallel to the existing limit model |
 | Remaining deployment checks | P1 | Per-process disabled/skipped checks and wait-to-retire |
 | `app.json` | P1 | Manifest path and supported persistent app-json behavior |
