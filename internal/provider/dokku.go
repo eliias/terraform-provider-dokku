@@ -32,6 +32,7 @@ type DokkuApp struct {
 	DomainsEnabledConfigured bool
 	Buildpacks               []string
 	ResourceLimits           []DokkuAppResourceLimit
+	ResourceReservations     []DokkuAppResourceLimit
 	// slice of strings denoting schema:hostPort:containerPort
 	Ports                []string
 	NginxBindAddressIpv4 string
@@ -71,6 +72,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	}
 
 	d.Set("resource_limits", resourceLimitsToInterfaces(app.ResourceLimits))
+	d.Set("resource_reservations", resourceLimitsToInterfaces(app.ResourceReservations))
 	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
 	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
 }
@@ -137,6 +139,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 	buildpacks := interfaceSliceToStrSlice(d.Get("buildpacks").([]interface{}))
 	ports := interfaceSliceToStrSlice(d.Get("ports").(*schema.Set).List())
 	resourceLimits := resourceLimitsFromInterfaces(d.Get("resource_limits").(*schema.Set).List())
+	resourceReservations := resourceLimitsFromInterfaces(d.Get("resource_reservations").(*schema.Set).List())
 
 	configVars := make(map[string]string)
 	for ck, cv := range d.Get("config_vars").(map[string]interface{}) {
@@ -155,6 +158,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Buildpacks:               buildpacks,
 		Ports:                    ports,
 		ResourceLimits:           resourceLimits,
+		ResourceReservations:     resourceReservations,
 		NginxBindAddressIpv4:     d.Get("nginx_bind_address_ipv4").(string),
 		NginxBindAddressIpv6:     d.Get("nginx_bind_address_ipv6").(string),
 	}
@@ -284,6 +288,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	}
 	app.ResourceLimits = resourceLimits
 
+	resourceReservations, err := readAppResourceReservations(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.ResourceReservations = resourceReservations
+
 	nginxReport, err := readAppNginxReport(appName, client)
 	if err != nil {
 		return nil, err
@@ -301,6 +311,15 @@ func readAppResourceLimits(appName string, client *goph.Client) ([]DokkuAppResou
 	}
 
 	return parseAppResourceLimits(res.stdout), nil
+}
+
+func readAppResourceReservations(appName string, client *goph.Client) ([]DokkuAppResourceLimit, error) {
+	res := run(client, fmt.Sprintf("resource:report %s", appName))
+	if res.err != nil {
+		return nil, res.err
+	}
+
+	return parseAppResourceReservations(res.stdout), nil
 }
 
 func readAppDomainsEnabled(appName string, client *goph.Client) (bool, error) {
@@ -328,6 +347,14 @@ func readAppLocked(appName string, client *goph.Client) (bool, error) {
 }
 
 func parseAppResourceLimits(stdout string) []DokkuAppResourceLimit {
+	return parseAppResourceValues(stdout, "limit")
+}
+
+func parseAppResourceReservations(stdout string) []DokkuAppResourceLimit {
+	return parseAppResourceValues(stdout, "reserve")
+}
+
+func parseAppResourceValues(stdout string, kind string) []DokkuAppResourceLimit {
 	limitsByProcess := make(map[string]*DokkuAppResourceLimit)
 	keyValues := parseKeyValues(strings.Split(stdout, "\n")[1:])
 
@@ -337,7 +364,7 @@ func parseAppResourceLimits(stdout string) []DokkuAppResourceLimit {
 		}
 
 		parts := strings.Fields(key)
-		if len(parts) < 4 || parts[0] != "resource" || parts[2] != "limit" {
+		if len(parts) < 4 || parts[0] != "resource" || parts[2] != kind {
 			continue
 		}
 
@@ -580,6 +607,12 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 		return err
 	}
 
+	err = dokkuAppResourceReservationsSet(app.Name, app.ResourceReservations, client)
+
+	if err != nil {
+		return err
+	}
+
 	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv4", app.NginxBindAddressIpv4, client)
 
 	if err != nil {
@@ -715,6 +748,64 @@ func dokkuAppResourceLimitsClear(appName string, limits []DokkuAppResourceLimit,
 		}
 	}
 
+	return nil
+}
+
+func dokkuAppResourceReservationsSet(appName string, reservations []DokkuAppResourceLimit, client *goph.Client) error {
+	return dokkuAppResourceValuesSet(appName, reservations, "resource:reserve", client)
+}
+
+func dokkuAppResourceReservationsClear(appName string, reservations []DokkuAppResourceLimit, client *goph.Client) error {
+	return dokkuAppResourceValuesClear(appName, reservations, "resource:reserve-clear", client)
+}
+
+func dokkuAppResourceValuesSet(appName string, values []DokkuAppResourceLimit, commandName string, client *goph.Client) error {
+	for _, value := range values {
+		args := make([]string, 0, 16)
+		if value.ProcessType != "_default_" {
+			args = append(args, "--process-type", shellescape.Quote(value.ProcessType))
+		}
+
+		resourceValues := []struct {
+			flag  string
+			value string
+		}{
+			{"--cpu", value.CPU},
+			{"--memory", value.Memory},
+			{"--memory-swap", value.MemorySwap},
+			{"--network", value.Network},
+			{"--network-ingress", value.NetworkIngress},
+			{"--network-egress", value.NetworkEgress},
+			{"--nvidia-gpu", value.NvidiaGPU},
+		}
+		for _, resourceValue := range resourceValues {
+			if resourceValue.value != "" {
+				args = append(args, resourceValue.flag, shellescape.Quote(resourceValue.value))
+			}
+		}
+
+		if len(args) == 0 {
+			continue
+		}
+
+		res := run(client, fmt.Sprintf("%s %s %s", commandName, strings.Join(args, " "), appName))
+		if res.err != nil {
+			return res.err
+		}
+	}
+	return nil
+}
+
+func dokkuAppResourceValuesClear(appName string, values []DokkuAppResourceLimit, commandName string, client *goph.Client) error {
+	for _, value := range values {
+		command := fmt.Sprintf("%s %s", commandName, appName)
+		if value.ProcessType != "_default_" {
+			command = fmt.Sprintf("%s --process-type %s %s", commandName, shellescape.Quote(value.ProcessType), appName)
+		}
+		if res := run(client, command); res.err != nil {
+			return res.err
+		}
+	}
 	return nil
 }
 
@@ -867,6 +958,19 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			return err
 		}
 		if err := dokkuAppResourceLimitsSet(appName, newLimits, client); err != nil {
+			return err
+		}
+	}
+
+	if d.HasChange("resource_reservations") {
+		oldReservationsI, newReservationsI := d.GetChange("resource_reservations")
+		oldReservations := resourceLimitsFromInterfaces(oldReservationsI.(*schema.Set).List())
+		newReservations := resourceLimitsFromInterfaces(newReservationsI.(*schema.Set).List())
+
+		if err := dokkuAppResourceReservationsClear(appName, oldReservations, client); err != nil {
+			return err
+		}
+		if err := dokkuAppResourceReservationsSet(appName, newReservations, client); err != nil {
 			return err
 		}
 	}

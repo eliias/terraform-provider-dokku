@@ -50,6 +50,32 @@ func TestParseAppResourceLimitsEmptyReport(t *testing.T) {
 	}
 }
 
+func TestParseAppResourceReservations(t *testing.T) {
+	stdout := `=====> example resource information
+       resource _default_ reserve cpu:                 0.25
+       resource _default_ reserve memory:              256m
+       resource web reserve network ingress:           4mbit
+       resource worker limit memory:                   512m
+`
+
+	got := resourceLimitLookup(parseAppResourceReservations(stdout))
+	want := map[string]DokkuAppResourceLimit{
+		"_default_": {
+			ProcessType: "_default_",
+			CPU:         "0.25",
+			Memory:      "256m",
+		},
+		"web": {
+			ProcessType:    "web",
+			NetworkIngress: "4mbit",
+		},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected parsed resource reservations (-want +got):\n%s", diff)
+	}
+}
+
 func TestResourceLimitsInterfaceRoundTrip(t *testing.T) {
 	want := []DokkuAppResourceLimit{
 		{

@@ -31,6 +31,7 @@ Manages a Dokku application. This resource enables the configuration and deploym
 - `nginx_bind_address_ipv6` (String) The IPv6 address that nginx will bind to for this application. Defaults to '::'.
 - `ports` (Set of String) Set of port mappings for the application. Each mapping should be in the format 'scheme:hostPort:containerPort' (e.g., 'https:443:8080').
 - `resource_limits` (Set of Object) Resource limits for the application. Limits may apply to all runtime processes or to a specific process type. Dokku applies changed limits on the next rebuild or deploy.
+- `resource_reservations` (Set of Object) Resource reservations for the application. Reservations use the same fields and process scoping as limits. Dokku applies changed reservations on the next rebuild or deploy.
 
 Each `resource_limits` block supports:
 
@@ -44,6 +45,12 @@ Each `resource_limits` block supports:
 - `nvidia_gpu` (String, optional) Maximum number of Nvidia GPUs.
 
 Resource values and units are interpreted by the app's Dokku scheduler.
+
+Each `resource_reservations` block supports the same fields. Reservation values
+are scheduler-specific lower-bound requests rather than maximum limits.
+
+Changing either limits or reservations only changes Dokku's persistent
+configuration. Terraform does not rebuild or restart existing containers.
 
 ### Read-Only
 

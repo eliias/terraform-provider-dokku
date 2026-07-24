@@ -106,6 +106,10 @@ func resourceApp() *schema.Resource {
 					},
 				},
 			},
+			"resource_reservations": resourceAllocationSchema(
+				"Resource reservations for the application. Reservations may apply to all runtime processes or to a specific process type.",
+				"Reserved",
+			),
 			"nginx_bind_address_ipv4": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -123,6 +127,34 @@ func resourceApp() *schema.Resource {
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+	}
+}
+
+func resourceAllocationSchema(description string, adjective string) *schema.Schema {
+	return &schema.Schema{
+		Type:        schema.TypeSet,
+		Optional:    true,
+		Computed:    true,
+		Set:         resourceLimitHash,
+		Description: description,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"process_type": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Default:      "_default_",
+					ValidateFunc: validation.StringMatch(regexp.MustCompile(`^(_default_|[A-Za-z0-9][A-Za-z0-9_-]*)$`), "must be _default_ or a valid Dokku process type"),
+					Description:  "Process type for these resources. Use `_default_` to apply them to all runtime processes.",
+				},
+				"cpu":             resourceLimitValueSchema(adjective + " CPU allocation. The value is scheduler-specific."),
+				"memory":          resourceLimitValueSchema(adjective + " memory allocation. The value is scheduler-specific, for example `512m`."),
+				"memory_swap":     resourceLimitValueSchema(adjective + " combined memory and swap allocation. The value is scheduler-specific."),
+				"network":         resourceLimitValueSchema(adjective + " network bandwidth. The value is scheduler-specific."),
+				"network_ingress": resourceLimitValueSchema(adjective + " ingress network bandwidth. The value is scheduler-specific."),
+				"network_egress":  resourceLimitValueSchema(adjective + " egress network bandwidth. The value is scheduler-specific."),
+				"nvidia_gpu":      resourceLimitValueSchema(adjective + " number of Nvidia GPUs. The value is scheduler-specific."),
+			},
 		},
 	}
 }
