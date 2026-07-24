@@ -49,6 +49,12 @@ func resourceApp() *schema.Resource {
 				Computed:    true,
 				Description: "List of domains to be associated with the application.",
 			},
+			"domains_enabled": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
+				Description: "Whether virtual-host domain routing is enabled for this application.",
+			},
 			"buildpacks": &schema.Schema{
 				Type: schema.TypeList,
 				Elem: &schema.Schema{

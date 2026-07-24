@@ -40,7 +40,7 @@ official Dokku datastore plugin repositories.
 | Area | Status | Current coverage |
 | --- | --- | --- |
 | Provider connection | Supported | SSH keys, inline keys, SSH agents, ordinary SSH users with a command prefix, host-version checks |
-| Applications | Partial | Create, import, rename, destroy, lock state read, config variables, domains, ports, buildpacks |
+| Applications | Partial | Create, import, rename, destroy, config variables, domains and enabled state, ports, buildpacks |
 | App resource limits | Partial | App-wide and per-process CPU, memory, swap, network, ingress, egress, and NVIDIA GPU limits |
 | Storage | Supported | Global entries and app mounts with phases, process type, read-only mode, subpaths, chown, and volume options |
 | App networks | Supported | Initial network, post-create and post-deploy attachments, interface binding, TLD, static listener, inherited effective values |
@@ -48,6 +48,8 @@ official Dokku datastore plugin repositories.
 | Builder settings | Partial | Builder selection, build directory, and cleanup behavior |
 | Proxy settings | Partial | Proxy enabled state and explicit proxy selection |
 | nginx settings | Partial | Request body size and common proxy buffer settings; bind addresses remain on the app resource |
+| Deployment checks | Partial | App-wide disabled state with process-specific skip reporting |
+| Git settings | Partial | Deploy branch management and pipeline-owned source image reporting |
 | Global networks | Supported | Global initial network, attachment phases, interface binding, and TLD |
 | Docker networks | Supported | Managed network lifecycle and metadata data source for managed or external networks |
 | PostgreSQL | Partial | Service lifecycle, image/version, stopped state, exposure, links, aliases, query strings, creation limits, and network phases |
@@ -73,17 +75,17 @@ official Dokku datastore plugin repositories.
 | --- | --- | --- |
 | App creation/global properties | P0 | Disable autocreation, deploy locking, and other persistent `apps` properties |
 | Global and per-app config | P0 | Preserve inheritance and distinguish raw from effective values |
-| Global and per-app domains | P0 | Enabled state, global domains, app domains, and inherited values |
+| Global domain defaults | P1 | Global domains and inherited raw/effective separation |
 | Remaining builder properties | P1 | Dockerfile path, herokuish allowance, and builder manifest paths |
 | Scheduler selection | P0 | docker-local, k3s, null, and custom schedulers |
 | docker-local scheduler properties | P0 | Init process and parallel schedule count |
 | Process scaling | P0 | Desired scale by process type without treating deploy status as configuration |
 | Process properties | P0 | Procfile path, restart policy, skip-deploy, start command, stop timeout |
 | Resource reservations | P0 | Reservations parallel to the existing limit model |
-| Deployment checks | P0 | Disabled/skipped checks and wait-to-retire |
+| Remaining deployment checks | P1 | Per-process disabled/skipped checks and wait-to-retire |
 | `app.json` | P1 | Manifest path and supported persistent app-json behavior |
 | Cron definitions | P1 | Declarative scheduled commands |
-| Git/repository properties | P1 | Deploy branch, archive limits, keep-git-dir, source image, and related persistent settings |
+| Remaining Git/repository properties | P1 | Archive limits, keep-git-dir, revision environment variable, and related persistent settings |
 | Buildpack properties | P1 | Stack and complete ordered buildpack management |
 | Registry properties | P1 | Image repository/template, server, push-on-release, and extra tags |
 

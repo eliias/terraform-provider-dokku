@@ -13,6 +13,8 @@ func TestAppSettingsReportSchemas(t *testing.T) {
 		"builder": resourceAppBuilder(),
 		"proxy":   resourceAppProxy(),
 		"nginx":   resourceAppNginx(),
+		"checks":  resourceAppChecks(),
+		"git":     resourceAppGit(),
 	}
 	for name, resource := range resources {
 		if resource.Importer == nil {

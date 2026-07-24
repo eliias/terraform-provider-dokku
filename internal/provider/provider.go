@@ -112,6 +112,8 @@ func Provider() *schema.Provider {
 			"dokku_app_builder":             resourceAppBuilder(),
 			"dokku_app_proxy":               resourceAppProxy(),
 			"dokku_app_nginx":               resourceAppNginx(),
+			"dokku_app_checks":              resourceAppChecks(),
+			"dokku_app_git":                 resourceAppGit(),
 			"dokku_network_global":          resourceNetworkGlobal(),
 			"dokku_storage_entry":           resourceStorageEntry(),
 			"dokku_storage_mount":           resourceStorageMount(),

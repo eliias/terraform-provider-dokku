@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -11,12 +12,17 @@ import (
 	"al.essio.dev/pkg/shellescape"
 )
 
+type dokkuAppDomainsReport struct {
+	AppEnabled string `json:"app-enabled"`
+}
+
 type DokkuApp struct {
 	Id             string
 	Name           string
 	Locked         bool
 	ConfigVars     map[string]string
 	Domains        []string
+	DomainsEnabled bool
 	Buildpacks     []string
 	ResourceLimits []DokkuAppResourceLimit
 	// slice of strings denoting schema:hostPort:containerPort
@@ -44,6 +50,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.Set("config_vars", app.managedConfigVars(d))
 
 	d.Set("domains", app.Domains)
+	d.Set("domains_enabled", app.DomainsEnabled)
 
 	if d.HasChange("buildpacks") || len(app.Buildpacks) > 0 {
 		d.Set("buildpacks", app.Buildpacks)
@@ -134,6 +141,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Locked:               d.Get("locked").(bool),
 		ConfigVars:           configVars,
 		Domains:              domains,
+		DomainsEnabled:       d.Get("domains_enabled").(bool),
 		Buildpacks:           buildpacks,
 		Ports:                ports,
 		ResourceLimits:       resourceLimits,
@@ -231,6 +239,11 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 		return nil, err
 	}
 	app.Domains = domains
+	domainsEnabled, err := readAppDomainsEnabled(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.DomainsEnabled = domainsEnabled
 
 	buildpacks, err := readAppBuildpacks(appName, client)
 	if err != nil {
@@ -273,6 +286,18 @@ func readAppResourceLimits(appName string, client *goph.Client) ([]DokkuAppResou
 	}
 
 	return parseAppResourceLimits(res.stdout), nil
+}
+
+func readAppDomainsEnabled(appName string, client *goph.Client) (bool, error) {
+	res := run(client, fmt.Sprintf("domains:report %s --format json", shellescape.Quote(appName)))
+	if res.err != nil {
+		return false, res.err
+	}
+	var report dokkuAppDomainsReport
+	if err := json.Unmarshal([]byte(res.stdout), &report); err != nil {
+		return false, fmt.Errorf("parsing domains report for %q: %w", appName, err)
+	}
+	return report.AppEnabled == "true", nil
 }
 
 func parseAppResourceLimits(stdout string) []DokkuAppResourceLimit {
@@ -795,6 +820,17 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		}
 		if err := dokkuAppResourceLimitsSet(appName, newLimits, client); err != nil {
 			return err
+		}
+	}
+
+	if d.HasChange("domains_enabled") {
+		action := "disable"
+		if app.DomainsEnabled {
+			action = "enable"
+		}
+		res := run(client, fmt.Sprintf("domains:%s %s", action, shellescape.Quote(appName)))
+		if res.err != nil {
+			return res.err
 		}
 	}
 
