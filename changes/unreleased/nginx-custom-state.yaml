@@ -1,0 +1,3 @@
+kind: feature
+body: Manage custom nginx template selection and inherited disable state.
+time: 2026-07-24T00:00:00.000000+02:00

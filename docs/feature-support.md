@@ -51,7 +51,7 @@ official Dokku datastore plugin repositories.
 | Process settings | Supported | Procfile, restart, restore, deploy, start-command, stop-timeout, exact scale, inherited values, and runtime status |
 | Resource reservations | Supported | CPU, memory, swap, network, and Nvidia GPU reservations globally or per process type |
 | Proxy settings | Partial | Proxy enabled state and explicit proxy selection |
-| nginx settings | Partial | Request body size and common proxy buffer settings; bind addresses remain on the app resource |
+| nginx settings | Partial | Request tuning, bind addresses, and custom template path/disable state with explicit config rebuilds |
 | Deployment checks | Partial | App-wide disabled state with process-specific skip reporting |
 | Git settings | Partial | Deploy branch management and pipeline-owned source image reporting |
 | Global networks | Supported | Global initial network, attachment phases, interface binding, and TLD |
