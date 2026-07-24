@@ -7,6 +7,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/melbahja/goph"
 )
 
 func TestAccDokkuAppDockerOptions(t *testing.T) {
@@ -35,6 +37,24 @@ func TestAccDokkuAppDockerOptions(t *testing.T) {
 					resource.TestCheckTypeSetElemAttr("dokku_app_docker_options.test", "deploy.*", "--add-host example.test:127.0.0.1"),
 				),
 			},
+			{
+				PreConfig: func() {
+					res := run(testAccProvider.Meta().(*goph.Client), fmt.Sprintf(
+						"docker-options:add %s deploy %s",
+						appName,
+						"'--label plugin-owned=yes'",
+					))
+					if res.err != nil {
+						t.Fatal(res.err)
+					}
+				},
+				Config: testAccDokkuAppDockerOptionsPreserveConfig(appName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dokku_app_docker_options.test", "deploy.#", "1"),
+					resource.TestCheckTypeSetElemAttr("dokku_app_docker_options.test", "deploy.*", "--label terraform-test=three"),
+					testAccCheckPreservedDockerOption("dokku_app_docker_options.test", "--label plugin-owned=yes"),
+				),
+			},
 		},
 	})
 }
@@ -50,6 +70,42 @@ resource "dokku_app_docker_options" "test" {
   deploy = %s
 }
 `, appName, deploy)
+}
+
+func testAccDokkuAppDockerOptionsPreserveConfig(appName string) string {
+	return fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name = %q
+}
+
+resource "dokku_app_docker_options" "test" {
+  app               = dokku_app.test.name
+  deploy            = ["--label terraform-test=three"]
+  preserve_prefixes = ["--label plugin-owned"]
+}
+`, appName)
+}
+
+func testAccCheckPreservedDockerOption(resourceName, wanted string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %q not found", resourceName)
+		}
+		options, exists, err := readAppDockerOptions(rs.Primary.ID, testAccProvider.Meta().(*goph.Client))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("app %q no longer exists", rs.Primary.ID)
+		}
+		for _, option := range options.Deploy {
+			if option == wanted {
+				return nil
+			}
+		}
+		return fmt.Errorf("preserved Docker option %q not found", wanted)
+	}
 }
 
 func TestParseAppDockerOptionsReport(t *testing.T) {
@@ -71,5 +127,16 @@ func TestParseAppDockerOptionsReport(t *testing.T) {
 func TestParseAppDockerOptionsReportRejectsInvalidJSON(t *testing.T) {
 	if _, err := parseAppDockerOptionsReport("mail", `{`); err == nil {
 		t.Fatal("expected invalid JSON to return an error")
+	}
+}
+
+func TestFilterPreservedDockerOptions(t *testing.T) {
+	got := filterPreservedDockerOptions(
+		[]string{"-u 0", "--link dokku.postgres.example:dokku-postgres-example"},
+		[]string{"--link dokku."},
+	)
+	want := []string{"-u 0"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }

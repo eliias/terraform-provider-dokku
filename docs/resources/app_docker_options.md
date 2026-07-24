@@ -30,8 +30,23 @@ Import an application's Docker options using its app name:
 terraform import dokku_app_docker_options.mail mail
 ```
 
-Deleting this resource clears the build, deploy, and run Docker options without
-restarting the application.
+Deleting this resource removes its managed build, deploy, and run Docker
+options without restarting the application. Options matched by
+`preserve_prefixes` remain untouched.
+
+Use `preserve_prefixes` when Dokku plugins own options on the same phases. For
+example, service links add `--link dokku.` options:
+
+```terraform
+resource "dokku_app_docker_options" "agent" {
+  app = dokku_app.agent.name
+
+  deploy = ["-u 0"]
+  run    = ["-u 0"]
+
+  preserve_prefixes = ["--link dokku."]
+}
+```
 
 ## Argument Reference
 
@@ -39,3 +54,5 @@ restarting the application.
 - `build` - (Optional) Docker options for build containers.
 - `deploy` - (Optional) Docker options for deploy containers.
 - `run` - (Optional) Docker options for one-off run containers.
+- `preserve_prefixes` - (Optional) Prefixes for options managed by another
+  integration. Matching options are preserved and excluded from phase state.

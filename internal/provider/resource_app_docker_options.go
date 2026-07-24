@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -37,6 +38,12 @@ func resourceAppDockerOptions() *schema.Resource {
 			"build":  dockerOptionsPhaseSchema("Docker options applied to build containers."),
 			"deploy": dockerOptionsPhaseSchema("Docker options applied to deployed application containers."),
 			"run":    dockerOptionsPhaseSchema("Docker options applied to one-off run containers."),
+			"preserve_prefixes": {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString, ValidateFunc: validation.StringIsNotEmpty},
+				Description: "Option prefixes owned by another integration and preserved during reconciliation. Preserved options are excluded from this resource's phase sets.",
+			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -83,7 +90,7 @@ func resourceAppDockerOptionsRead(ctx context.Context, d *schema.ResourceData, m
 	for phase, values := range map[string][]string{
 		"build": options.Build, "deploy": options.Deploy, "run": options.Run,
 	} {
-		if err := d.Set(phase, values); err != nil {
+		if err := d.Set(phase, filterPreservedDockerOptions(values, dockerOptionPreservePrefixes(d))); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -108,7 +115,7 @@ func resourceAppDockerOptionsDelete(ctx context.Context, d *schema.ResourceData,
 		}
 		return diag.FromErr(exists.err)
 	}
-	if err := clearAppDockerOptions(app, client); err != nil {
+	if err := removeManagedAppDockerOptions(app, dockerOptionPreservePrefixes(d), client); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
@@ -117,11 +124,15 @@ func resourceAppDockerOptionsDelete(ctx context.Context, d *schema.ResourceData,
 
 func replaceAppDockerOptions(d *schema.ResourceData, client *goph.Client) error {
 	app := d.Get("app").(string)
-	if err := clearAppDockerOptions(app, client); err != nil {
+	preservePrefixes := dockerOptionPreservePrefixes(d)
+	if err := removeManagedAppDockerOptions(app, preservePrefixes, client); err != nil {
 		return err
 	}
 	for _, phase := range []string{"build", "deploy", "run"} {
 		for _, option := range interfaceSliceToStrSlice(d.Get(phase).(*schema.Set).List()) {
+			if hasDockerOptionPrefix(option, preservePrefixes) {
+				return fmt.Errorf("docker option %q is matched by preserve_prefixes and cannot also be managed", option)
+			}
 			res := run(client, fmt.Sprintf(
 				"docker-options:add %s %s %s",
 				shellescape.Quote(app),
@@ -136,18 +147,50 @@ func replaceAppDockerOptions(d *schema.ResourceData, client *goph.Client) error 
 	return nil
 }
 
-func clearAppDockerOptions(app string, client *goph.Client) error {
-	for _, phase := range []string{"build", "deploy", "run"} {
-		res := run(client, fmt.Sprintf(
-			"docker-options:clear %s %s",
-			shellescape.Quote(app),
-			shellescape.Quote(phase),
-		))
-		if res.err != nil {
-			return res.err
+func removeManagedAppDockerOptions(app string, preservePrefixes []string, client *goph.Client) error {
+	options, exists, err := readAppDockerOptions(app, client)
+	if err != nil || !exists {
+		return err
+	}
+	for phase, values := range map[string][]string{
+		"build": options.Build, "deploy": options.Deploy, "run": options.Run,
+	} {
+		for _, option := range filterPreservedDockerOptions(values, preservePrefixes) {
+			res := run(client, fmt.Sprintf(
+				"docker-options:remove %s %s %s",
+				shellescape.Quote(app),
+				shellescape.Quote(phase),
+				shellescape.Quote(option),
+			))
+			if res.err != nil {
+				return res.err
+			}
 		}
 	}
 	return nil
+}
+
+func dockerOptionPreservePrefixes(d *schema.ResourceData) []string {
+	return interfaceSliceToStrSlice(d.Get("preserve_prefixes").(*schema.Set).List())
+}
+
+func filterPreservedDockerOptions(options, preservePrefixes []string) []string {
+	filtered := make([]string, 0, len(options))
+	for _, option := range options {
+		if !hasDockerOptionPrefix(option, preservePrefixes) {
+			filtered = append(filtered, option)
+		}
+	}
+	return filtered
+}
+
+func hasDockerOptionPrefix(option string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(option, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func readAppDockerOptions(app string, client *goph.Client) (dokkuAppDockerOptions, bool, error) {
