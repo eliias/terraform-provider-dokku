@@ -1,0 +1,2 @@
+kind: Added
+body: Add importable generic and docker-local app scheduler resources with raw and effective inherited values.
