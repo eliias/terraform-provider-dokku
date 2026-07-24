@@ -40,6 +40,7 @@ official Dokku datastore plugin repositories.
 | Area | Status | Current coverage |
 | --- | --- | --- |
 | Provider connection | Supported | SSH keys, inline keys, SSH agents, ordinary SSH users with a command prefix, host-version checks |
+| Host capabilities | Supported | Dokku version, tested-version status, and enabled plugins grouped into builders, schedulers, and proxies |
 | Applications | Partial | Create, import, rename, destroy, deployment locks, config variables, domains and enabled state, ports, buildpacks |
 | App resource limits | Partial | App-wide and per-process CPU, memory, swap, network, ingress, egress, and NVIDIA GPU limits |
 | Storage | Supported | Global entries and app mounts with phases, process type, read-only mode, subpaths, chown, and volume options |
@@ -64,7 +65,6 @@ official Dokku datastore plugin repositories.
 
 | Feature | Priority | Notes |
 | --- | --- | --- |
-| Capability data source | P0 | Report Dokku version, installed/enabled plugin versions, builders, schedulers, and proxies so resources can fail with actionable compatibility errors |
 | Structured report parsing | P0 | Shared JSON/report helpers with compatibility aliases for supported Dokku releases |
 | App and service data sources | P1 | Read existing objects without taking ownership |
 | Consistent import verification | P1 | Acceptance coverage for every resource |

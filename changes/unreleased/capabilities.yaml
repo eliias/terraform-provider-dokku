@@ -1,0 +1,2 @@
+kind: Added
+body: Add a read-only host capability data source for Dokku version, plugins, builders, schedulers, and proxies.

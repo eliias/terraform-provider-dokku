@@ -119,7 +119,8 @@ func Provider() *schema.Provider {
 			"dokku_storage_mount":           resourceStorageMount(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"dokku_network": dataSourceNetwork(),
+			"dokku_network":      dataSourceNetwork(),
+			"dokku_capabilities": dataSourceCapabilities(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
