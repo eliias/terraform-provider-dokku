@@ -24,12 +24,11 @@ func resourceApp() *schema.Resource {
 				Required:    true,
 				Description: "The name of the Dokku application.",
 			},
-			// TODO: locked support
 			"locked": &schema.Schema{
 				Type:        schema.TypeBool,
 				Default:     false,
 				Optional:    true,
-				Description: "(Not yet implemented) Whether the application is locked for deployment. When true, deploys to this application will be blocked.",
+				Description: "Whether the application is locked for deployment. When true, deploys to this application are blocked.",
 			},
 			"config_vars": &schema.Schema{
 				Type: schema.TypeMap,

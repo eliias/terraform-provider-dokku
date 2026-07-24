@@ -40,7 +40,7 @@ official Dokku datastore plugin repositories.
 | Area | Status | Current coverage |
 | --- | --- | --- |
 | Provider connection | Supported | SSH keys, inline keys, SSH agents, ordinary SSH users with a command prefix, host-version checks |
-| Applications | Partial | Create, import, rename, destroy, config variables, domains and enabled state, ports, buildpacks |
+| Applications | Partial | Create, import, rename, destroy, deployment locks, config variables, domains and enabled state, ports, buildpacks |
 | App resource limits | Partial | App-wide and per-process CPU, memory, swap, network, ingress, egress, and NVIDIA GPU limits |
 | Storage | Supported | Global entries and app mounts with phases, process type, read-only mode, subpaths, chown, and volume options |
 | App networks | Supported | Initial network, post-create and post-deploy attachments, interface binding, TLD, static listener, inherited effective values |
@@ -73,7 +73,7 @@ official Dokku datastore plugin repositories.
 
 | Feature | Priority | Notes |
 | --- | --- | --- |
-| App creation/global properties | P0 | Disable autocreation, deploy locking, and other persistent `apps` properties |
+| App creation/global properties | P1 | Disable autocreation and remaining persistent `apps` properties |
 | Global and per-app config | P0 | Preserve inheritance and distinguish raw from effective values |
 | Global domain defaults | P1 | Global domains and inherited raw/effective separation |
 | Remaining builder properties | P1 | Dockerfile path, herokuish allowance, and builder manifest paths |

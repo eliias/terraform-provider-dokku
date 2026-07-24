@@ -1,0 +1,2 @@
+kind: Fixed
+body: Reconcile application deployment locks and read their live state.

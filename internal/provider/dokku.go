@@ -16,6 +16,10 @@ type dokkuAppDomainsReport struct {
 	AppEnabled string `json:"app-enabled"`
 }
 
+type dokkuAppsReport struct {
+	Locked string `json:"locked"`
+}
+
 type DokkuApp struct {
 	Id             string
 	Name           string
@@ -23,8 +27,11 @@ type DokkuApp struct {
 	ConfigVars     map[string]string
 	Domains        []string
 	DomainsEnabled bool
-	Buildpacks     []string
-	ResourceLimits []DokkuAppResourceLimit
+	// DomainsEnabledConfigured distinguishes an explicit false value from the
+	// unknown computed value during creation.
+	DomainsEnabledConfigured bool
+	Buildpacks               []string
+	ResourceLimits           []DokkuAppResourceLimit
 	// slice of strings denoting schema:hostPort:containerPort
 	Ports                []string
 	NginxBindAddressIpv4 string
@@ -136,17 +143,20 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		configVars[ck] = cv.(string)
 	}
 
+	_, domainsEnabledConfigured := d.GetOkExists("domains_enabled")
+
 	return &DokkuApp{
-		Name:                 d.Get("name").(string),
-		Locked:               d.Get("locked").(bool),
-		ConfigVars:           configVars,
-		Domains:              domains,
-		DomainsEnabled:       d.Get("domains_enabled").(bool),
-		Buildpacks:           buildpacks,
-		Ports:                ports,
-		ResourceLimits:       resourceLimits,
-		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
-		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
+		Name:                     d.Get("name").(string),
+		Locked:                   d.Get("locked").(bool),
+		ConfigVars:               configVars,
+		Domains:                  domains,
+		DomainsEnabled:           d.Get("domains_enabled").(bool),
+		DomainsEnabledConfigured: domainsEnabledConfigured,
+		Buildpacks:               buildpacks,
+		Ports:                    ports,
+		ResourceLimits:           resourceLimits,
+		NginxBindAddressIpv4:     d.Get("nginx_bind_address_ipv4").(string),
+		NginxBindAddressIpv6:     d.Get("nginx_bind_address_ipv6").(string),
 	}
 }
 
@@ -234,6 +244,11 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	}
 
 	app.ConfigVars = readAppConfig(appName, client)
+	locked, err := readAppLocked(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.Locked = locked
 	domains, err := readAppDomains(appName, client)
 	if err != nil {
 		return nil, err
@@ -298,6 +313,18 @@ func readAppDomainsEnabled(appName string, client *goph.Client) (bool, error) {
 		return false, fmt.Errorf("parsing domains report for %q: %w", appName, err)
 	}
 	return report.AppEnabled == "true", nil
+}
+
+func readAppLocked(appName string, client *goph.Client) (bool, error) {
+	res := run(client, fmt.Sprintf("apps:report %s --format json", shellescape.Quote(appName)))
+	if res.err != nil {
+		return false, res.err
+	}
+	var report dokkuAppsReport
+	if err := json.Unmarshal([]byte(res.stdout), &report); err != nil {
+		return false, fmt.Errorf("parsing apps report for %q: %w", appName, err)
+	}
+	return report.Locked == "true", nil
 }
 
 func parseAppResourceLimits(stdout string) []DokkuAppResourceLimit {
@@ -525,6 +552,15 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	if err != nil {
 		return err
 	}
+	if app.DomainsEnabledConfigured {
+		action := "disable"
+		if app.DomainsEnabled {
+			action = "enable"
+		}
+		if res := run(client, fmt.Sprintf("domains:%s %s", action, shellescape.Quote(app.Name))); res.err != nil {
+			return res.err
+		}
+	}
 
 	err = dokkuAppBuildpackAdd(app.Name, app.Buildpacks, client)
 
@@ -552,7 +588,13 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 
 	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv6", app.NginxBindAddressIpv6, client)
 
-	return err
+	if err != nil {
+		return err
+	}
+	if app.Locked {
+		return setAppLocked(app.Name, true, client)
+	}
+	return nil
 }
 
 func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
@@ -692,6 +734,12 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 	}
 
 	appName := d.Get("name").(string)
+
+	if d.HasChange("locked") {
+		if err := setAppLocked(appName, app.Locked, client); err != nil {
+			return err
+		}
+	}
 
 	if d.HasChange("config_vars") {
 		log.Println("[DEBUG] Changing config keys...")
@@ -845,6 +893,14 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 	}
 
 	return nil
+}
+
+func setAppLocked(appName string, locked bool, client *goph.Client) error {
+	action := "unlock"
+	if locked {
+		action = "lock"
+	}
+	return run(client, fmt.Sprintf("apps:%s %s", action, shellescape.Quote(appName))).err
 }
 
 func changedConfigVars(desired, current map[string]string) map[string]string {
